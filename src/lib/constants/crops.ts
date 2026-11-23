@@ -1,0 +1,18 @@
+export const STANDARD_CROPS = [
+  'Cabai Rawit',
+  'Cabai Keriting',
+  'Timun Baby',
+  'Tomat',
+  'Sawi',
+  'Pakcoy',
+  'Labu Siam',
+  'Terong',
+  'Kacang Panjang',
+  'Daun Bawang',
+  'Buncis',
+  'Bayam',
+  'Kangkung',
+  'Kemangi',
+  'Kenikir',
+  'Lainnya',
+] as const
