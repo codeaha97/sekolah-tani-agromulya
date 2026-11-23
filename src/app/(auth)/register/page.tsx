@@ -104,7 +104,7 @@ export default function RegisterPage() {
 
             <div className="space-y-1">
               <Label>Daftar Sebagai</Label>
-              <Select value={role} onValueChange={(val: 'peserta' | 'admin') => setRole(val)}>
+              <Select value={role} onValueChange={(val) => val && setRole(val as 'peserta' | 'admin')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -119,7 +119,7 @@ export default function RegisterPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label>Angkatan</Label>
-                  <Select value={cohortName} onValueChange={setCohortName}>
+                  <Select value={cohortName} onValueChange={(val) => val && setCohortName(val)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -132,7 +132,7 @@ export default function RegisterPage() {
                 </div>
                 <div className="space-y-1">
                   <Label>Kelompok Tani</Label>
-                  <Select value={farmGroup} onValueChange={setFarmGroup}>
+                  <Select value={farmGroup} onValueChange={(val) => val && setFarmGroup(val)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>

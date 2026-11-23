@@ -94,7 +94,7 @@ export function AddBatchDialog() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="space-y-1">
               <Label>Komoditas</Label>
-              <Select value={selectedCrop} onValueChange={setSelectedCrop}>
+              <Select value={selectedCrop} onValueChange={(val) => val && setSelectedCrop(val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih komoditas" />
                 </SelectTrigger>

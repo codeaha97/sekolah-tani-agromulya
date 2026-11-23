@@ -260,7 +260,7 @@ export function AdminCurriculumManager({
             </div>
             <div className="space-y-1">
               <Label>Kategori</Label>
-              <Select value={modCategory} onValueChange={setModCategory}>
+              <Select value={modCategory} onValueChange={(val) => val && setModCategory(val)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Kesehatan Tanah">Kesehatan Tanah</SelectItem>

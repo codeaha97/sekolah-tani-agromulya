@@ -94,7 +94,7 @@ export function AdminActionForms() {
             </div>
             <div className="space-y-1">
               <Label>Kategori</Label>
-              <Select value={category} onValueChange={setCategory}>
+              <Select value={category} onValueChange={(val) => val && setCategory(val)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Kesehatan Tanah">Kesehatan Tanah</SelectItem>
@@ -136,7 +136,7 @@ export function AdminActionForms() {
           <form onSubmit={handleSaveSop} className="space-y-3">
             <div className="space-y-1">
               <Label>Pilih Komoditas</Label>
-              <Select value={cropName} onValueChange={setCropName}>
+              <Select value={cropName} onValueChange={(val) => val && setCropName(val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih komoditas" />
                 </SelectTrigger>
