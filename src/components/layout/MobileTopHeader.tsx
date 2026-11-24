@@ -25,11 +25,11 @@ export function MobileTopHeader({ profile }: { profile: UserNavProfile }) {
   }
 
   return (
-    <header className="md:hidden sticky top-0 z-40 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-white border-b border-emerald-800/60 shadow-sm pt-safe">
+    <header className="md:hidden sticky top-0 z-40 bg-gradient-to-r from-emerald-950 via-emerald-900 to-emerald-950 text-white border-b border-emerald-800/70 shadow-xs">
       {/* Baris Utama: Identitas Aplikasi & Tombol Keluar */}
       <div className="px-4 pt-3 pb-2 flex items-center justify-between gap-2">
         <Link href="/" className="flex items-center gap-2.5 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-emerald-800/90 border border-emerald-700/80 flex items-center justify-center shrink-0 shadow-inner">
+          <div className="w-9 h-9 rounded-xl bg-emerald-800/90 border border-emerald-700/80 flex items-center justify-center shrink-0">
             <Sprout className="w-5 h-5 text-emerald-300" />
           </div>
           <div className="min-w-0 leading-tight">
@@ -46,9 +46,9 @@ export function MobileTopHeader({ profile }: { profile: UserNavProfile }) {
           type="button"
           onClick={handleLogoutClick}
           title="Keluar Akun"
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-[11px] font-medium transition-all shrink-0 ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all shrink-0 ${
             confirmLogout
-              ? 'bg-red-600 text-white shadow-xs'
+              ? 'bg-red-600 text-white shadow-2xs'
               : 'bg-emerald-900/80 border border-emerald-800 text-emerald-200 hover:bg-emerald-800 hover:text-white'
           }`}
         >
@@ -57,11 +57,11 @@ export function MobileTopHeader({ profile }: { profile: UserNavProfile }) {
         </button>
       </div>
 
-      {/* Baris Kedua: Pill Status Pengguna & Kelompok (Tap untuk ke Profil) */}
+      {/* Baris Kedua: Pill Status Pengguna & Kelompok */}
       <div className="px-4 pb-2.5">
         <Link
           href="/profil"
-          className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-emerald-900/55 border border-emerald-800/70 active:bg-emerald-800/70 transition-colors"
+          className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-xl bg-emerald-900/60 border border-emerald-800/70 active:bg-emerald-800/70 transition-colors"
         >
           <div className="flex items-center gap-2 min-w-0 text-[11px]">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />

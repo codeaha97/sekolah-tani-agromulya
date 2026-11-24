@@ -33,20 +33,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-900 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-stone-100/70 text-stone-900 flex flex-col md:flex-row">
       {/* SIDEBAR DESKTOP */}
       <DesktopSidebar profile={userProfile} />
 
-      {/* TOP BAR KHUSUS MOBILE (Info User, Angkatan/Kelompok & Tombol Keluar) */}
+      {/* TOP BAR KHUSUS MOBILE */}
       <MobileTopHeader profile={userProfile} />
 
       {/* KONTEN UTAMA */}
-      <main className="flex-1 md:pl-64 pb-24 md:pb-8">
-        <div className="max-w-5xl mx-auto p-4 md:p-8">{children}</div>
+      <main className="flex-1 md:pl-64 pb-24 md:pb-10">
+        <div className="max-w-5xl mx-auto px-4 py-5 sm:px-6 md:p-8">{children}</div>
       </main>
 
       {/* BOTTOM NAVIGATION BAR MOBILE */}
-      <MobileBottomNav/>
+      <MobileBottomNav />
     </div>
   )
 }

@@ -5,7 +5,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { CheckCircle2, Circle, Plus, ListChecks, Sparkles } from 'lucide-react'
+import {
+  CheckCircle2,
+  Circle,
+  Plus,
+  ListChecks,
+  Sparkles,
+  CalendarClock,
+  Trash2,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
@@ -26,7 +34,13 @@ interface SopChecklistCardProps {
   canEdit: boolean
 }
 
-export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEdit }: SopChecklistCardProps) {
+export function SopChecklistCard({
+  batchId,
+  cropName,
+  plantingDate,
+  steps,
+  canEdit,
+}: SopChecklistCardProps) {
   const [newStep, setNewStep] = useState('')
   const [targetDate, setTargetDate] = useState('')
   const [loadingId, setLoadingId] = useState<string | null>(null)
@@ -36,6 +50,7 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
   const supabase = createClient()
   const router = useRouter()
 
+  const todayStr = new Date().toISOString().split('T')[0]
   const completedCount = steps.filter((s) => s.is_completed).length
   const progressPct = steps.length > 0 ? Math.round((completedCount / steps.length) * 100) : 0
 
@@ -58,24 +73,43 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
     router.refresh()
   }
 
+  const handleDeleteStep = async (e: React.MouseEvent, stepId: string) => {
+    e.stopPropagation()
+    if (!canEdit) return
+    setLoadingId(stepId)
+    await supabase.from('batch_sop_progress').delete().eq('id', stepId)
+    setLoadingId(null)
+    router.refresh()
+  }
+
   const handleSyncFromTemplate = async () => {
     if (!canEdit) return
     setSyncing(true)
-    const { data: templates } = await supabase
+    let { data: templates } = await supabase
       .from('crop_sop_templates')
       .select('*')
-      .eq('crop_name', cropName)
+      .ilike('crop_name', cropName)
       .order('step_order', { ascending: true })
+
+    if (!templates || templates.length === 0) {
+      const { data: partial } = await supabase
+        .from('crop_sop_templates')
+        .select('*')
+        .ilike('crop_name', `%${cropName}%`)
+        .order('step_order', { ascending: true })
+      templates = partial
+    }
 
     if (templates && templates.length > 0) {
       const generatedSteps = templates.map((t) => {
         const target = new Date(plantingDate)
-        target.setDate(target.getDate() + t.target_hst)
+        target.setDate(target.getDate() + Number(t.target_hst || 0))
         return {
           batch_id: batchId,
           sop_template_id: t.id,
           custom_step_name: `${t.phase_name} (HST ${t.target_hst})`,
           target_date: target.toISOString().split('T')[0],
+          is_completed: false,
         }
       })
       await supabase.from('batch_sop_progress').insert(generatedSteps)
@@ -92,7 +126,7 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
 
     await supabase.from('batch_sop_progress').insert({
       batch_id: batchId,
-      custom_step_name: newStep,
+      custom_step_name: newStep.trim(),
       target_date: targetDate || null,
     })
 
@@ -103,59 +137,122 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
   }
 
   return (
-    <Card className="border-stone-200">
-      <CardHeader className="pb-3 flex flex-row items-center justify-between">
-        <div>
-          <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <ListChecks className="w-4 h-4 text-emerald-700" /> Tahapan SOP & Jadwal Perawatan
-          </CardTitle>
-          <p className="text-xs text-stone-500 mt-0.5">
-            Selesai: <strong>{completedCount}</strong> dari {steps.length} tahapan ({progressPct}%)
-          </p>
+    <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+      <CardHeader className="pb-3 space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <CardTitle className="text-base font-bold text-stone-900 flex items-center gap-2">
+              <ListChecks className="w-4 h-4 text-emerald-700" />
+              Tahapan SOP &amp; Jadwal Perawatan
+            </CardTitle>
+            <p className="text-xs text-stone-500 mt-0.5">
+              Selesai: <strong className="text-stone-800 tabular-nums">{completedCount}</strong> dari{' '}
+              <span className="tabular-nums">{steps.length}</span> tahapan
+            </p>
+          </div>
+          <Badge
+            variant="secondary"
+            className="rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200/70 font-bold text-xs tabular-nums"
+          >
+            {progressPct}%
+          </Badge>
         </div>
-        <Badge variant="secondary" className="bg-emerald-50 text-emerald-800">
-          {progressPct}%
-        </Badge>
+
+        {/* Progress Bar SOP */}
+        {steps.length > 0 && (
+          <div className="w-full h-1.5 rounded-full bg-stone-100 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-emerald-600 transition-all duration-300"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="space-y-3">
         {steps.length > 0 ? (
           <div className="space-y-2">
-            {steps.map((step) => (
-              <button
-                key={step.id}
-                type="button"
-                disabled={!canEdit || loadingId === step.id}
-                onClick={() => handleToggleStep(step)}
-                className={`w-full text-left flex items-start justify-between gap-3 p-3 rounded-xl border transition-colors ${
-                  step.is_completed
-                    ? 'bg-emerald-50/60 border-emerald-200 text-stone-600'
-                    : 'bg-white border-stone-200 hover:border-emerald-400 text-stone-800'
-                } ${!canEdit ? 'cursor-default' : 'cursor-pointer'}`}
-              >
-                <div className="flex items-start gap-2.5">
-                  {step.is_completed ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                  ) : (
-                    <Circle className="w-5 h-5 text-stone-300 shrink-0 mt-0.5" />
-                  )}
-                  <div>
-                    <p className={`text-sm font-medium ${step.is_completed ? 'line-through text-stone-500' : ''}`}>
-                      {step.custom_step_name}
-                    </p>
-                    {step.is_completed && step.completer?.full_name && (
-                      <p className="text-[11px] text-emerald-700 mt-0.5">
-                        Ditandai selesai oleh {step.completer.full_name}
+            {steps.map((step) => {
+              const isOverdue = !step.is_completed && step.target_date && step.target_date < todayStr
+              const isToday = !step.is_completed && step.target_date === todayStr
+
+              return (
+                <div
+                  key={step.id}
+                  role={canEdit ? 'button' : undefined}
+                  tabIndex={canEdit ? 0 : undefined}
+                  onClick={() => handleToggleStep(step)}
+                  onKeyDown={(e) => {
+                    if (canEdit && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault()
+                      handleToggleStep(step)
+                    }
+                  }}
+                  className={`w-full text-left flex items-start justify-between gap-2.5 p-3 rounded-xl border transition-all ${
+                    step.is_completed
+                      ? 'bg-emerald-50/50 border-emerald-200/80 text-stone-500'
+                      : 'bg-white border-stone-200/90 hover:border-emerald-400 text-stone-800 shadow-2xs'
+                  } ${!canEdit ? 'cursor-default' : 'cursor-pointer'} ${
+                    loadingId === step.id ? 'opacity-60 pointer-events-none' : ''
+                  }`}
+                >
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    {step.is_completed ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                    ) : (
+                      <Circle className="w-5 h-5 text-stone-300 shrink-0 mt-0.5" />
+                    )}
+                    <div className="min-w-0">
+                      <p
+                        className={`text-xs sm:text-sm font-semibold leading-snug ${
+                          step.is_completed ? 'line-through text-stone-400' : 'text-stone-800'
+                        }`}
+                      >
+                        {step.custom_step_name}
                       </p>
+                      {step.is_completed && step.completer?.full_name && (
+                        <p className="text-[11px] text-emerald-700 mt-0.5">
+                          Ditandai selesai oleh {step.completer.full_name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {step.target_date && (
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[11px] font-semibold tabular-nums ${
+                          step.is_completed
+                            ? 'bg-white/80 border-stone-200 text-stone-400'
+                            : isOverdue
+                            ? 'bg-red-50 border-red-200 text-red-700'
+                            : isToday
+                            ? 'bg-amber-50 border-amber-200 text-amber-800'
+                            : 'bg-stone-50 border-stone-200 text-stone-600'
+                        }`}
+                      >
+                        <CalendarClock className="w-3 h-3" />
+                        {isToday ? 'Hari Ini' : step.target_date}
+                      </span>
+                    )}
+
+                    {canEdit && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteStep(e, step.id)}
+                        title="Hapus tahapan"
+                        className="p-1 rounded-md text-stone-300 hover:text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     )}
                   </div>
                 </div>
-                <span className="text-xs text-stone-400 shrink-0">{step.target_date || '-'}</span>
-              </button>
-            ))}
+              )
+            })}
           </div>
         ) : (
-          <div className="p-4 rounded-xl bg-stone-50 border border-dashed border-stone-200 text-center space-y-2">
+          <div className="p-5 rounded-xl bg-stone-50 border border-dashed border-stone-200 text-center space-y-2.5">
             <p className="text-xs text-stone-500">Belum ada tahapan SOP terjadwal untuk batch ini.</p>
             {canEdit && (
               <Button
@@ -164,9 +261,9 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
                 variant="outline"
                 disabled={syncing}
                 onClick={handleSyncFromTemplate}
-                className="border-emerald-300 text-emerald-800 hover:bg-emerald-50"
+                className="rounded-lg border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50 font-semibold text-xs"
               >
-                <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                <Sparkles className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
                 {syncing ? 'Memuat SOP...' : `Muat Template SOP ${cropName}`}
               </Button>
             )}
@@ -174,22 +271,31 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
         )}
 
         {canEdit && (
-          <form onSubmit={handleAddCustomStep} className="pt-2 border-t border-stone-100 flex flex-col sm:flex-row gap-2">
+          <form
+            onSubmit={handleAddCustomStep}
+            className="pt-3 border-t border-stone-100 flex flex-col sm:flex-row gap-2"
+          >
             <Input
               placeholder="Tambah tahapan perawatan kustom..."
               value={newStep}
               onChange={(e) => setNewStep(e.target.value)}
-              className="text-sm"
+              className="text-xs sm:text-sm h-9 rounded-lg flex-1"
             />
             <div className="flex gap-2">
               <Input
                 type="date"
                 value={targetDate}
                 onChange={(e) => setTargetDate(e.target.value)}
-                className="text-sm w-auto"
+                className="text-xs sm:text-sm h-9 rounded-lg w-full sm:w-auto"
               />
-              <Button type="submit" size="sm" disabled={adding} variant="outline" className="shrink-0">
-                <Plus className="w-4 h-4 mr-1" /> Tambah
+              <Button
+                type="submit"
+                size="sm"
+                disabled={adding || !newStep.trim()}
+                variant="outline"
+                className="h-9 px-3 rounded-lg font-semibold text-xs shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" /> Tambah
               </Button>
             </div>
           </form>

@@ -5,7 +5,7 @@ import { BusinessActionModals } from '@/components/bisnis/BusinessActionModals'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Wallet, TrendingUp, Scale, ArrowDownRight, ArrowUpRight, BarChart3 } from 'lucide-react'
+import { Wallet, TrendingUp, Scale, ArrowDownRight, ArrowUpRight, BarChart3, Sprout } from 'lucide-react'
 
 const formatRp = (val: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
@@ -58,17 +58,17 @@ export default async function BisnisPage() {
   const grandNetProfit = grandTotalRevenue - grandTotalExpense
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {/* Header Halaman */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-stone-200">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-200">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-stone-900">
-            {!isAdmin ? `Agribisnis ${profile?.farm_group}` : 'Rekap & Komparasi Agribisnis Kelas'}
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-stone-900">
+            {!isAdmin ? `Agribisnis ${profile?.farm_group}` : 'Agribisnis & HPP Kelas'}
           </h1>
-          <p className="text-sm text-stone-500">
+          <p className="text-xs sm:text-sm text-stone-500">
             {!isAdmin
-              ? 'Analisis HPP per kilogram, pencatatan RAB, dan realisasi omzet panen kelompok.'
-              : 'Evaluasi efisiensi biaya produksi (HPP), volume panen, dan profitabilitas lintas kelompok.'}
+              ? 'Analisis HPP per kg, pencatatan RAB, dan omzet panen kelompok.'
+              : 'Evaluasi efisiensi modal (RAB), volume panen, dan profitabilitas kelompok.'}
           </p>
         </div>
 
@@ -84,50 +84,64 @@ export default async function BisnisPage() {
 
       {/* 4 Kartu KPI Keuangan */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <Card className="border-stone-200/80 shadow-none">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-red-50 text-red-600 shrink-0">
-              <ArrowDownRight className="w-5 h-5" />
+        <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+          <CardContent className="p-3.5 sm:p-4 flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+              <ArrowDownRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-stone-500">Total Modal (RAB)</p>
-              <p className="text-sm sm:text-base font-bold text-stone-900 truncate">{formatRp(grandTotalExpense)}</p>
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider">Modal (RAB)</p>
+              <p className="text-sm sm:text-base font-bold text-stone-900 tabular-nums truncate">
+                {formatRp(grandTotalExpense)}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-stone-200/80 shadow-none">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-700 shrink-0">
-              <ArrowUpRight className="w-5 h-5" />
+        <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+          <CardContent className="p-3.5 sm:p-4 flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+              <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-stone-500">Total Omzet</p>
-              <p className="text-sm sm:text-base font-bold text-emerald-700 truncate">{formatRp(grandTotalRevenue)}</p>
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider">Total Omzet</p>
+              <p className="text-sm sm:text-base font-bold text-emerald-700 tabular-nums truncate">
+                {formatRp(grandTotalRevenue)}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-stone-200/80 shadow-none">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-50 text-amber-700 shrink-0">
-              <Scale className="w-5 h-5" />
+        <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+          <CardContent className="p-3.5 sm:p-4 flex items-center gap-3">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+              <Scale className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-stone-500">Volume Panen</p>
-              <p className="text-sm sm:text-base font-bold text-stone-900 truncate">{grandTotalHarvestKg} kg</p>
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider">Volume Panen</p>
+              <p className="text-sm sm:text-base font-bold text-stone-900 tabular-nums truncate">
+                {grandTotalHarvestKg} <span className="text-xs font-normal text-stone-400">kg</span>
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-stone-200/80 shadow-none">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl shrink-0 ${grandNetProfit >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-600'}`}>
-              <Wallet className="w-5 h-5" />
+        <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+          <CardContent className="p-3.5 sm:p-4 flex items-center gap-3">
+            <div
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                grandNetProfit >= 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-red-50 text-red-600'
+              }`}
+            >
+              <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div className="min-w-0">
-              <p className="text-xs text-stone-500">Saldo Laba/Rugi</p>
-              <p className={`text-sm sm:text-base font-bold truncate ${grandNetProfit >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+              <p className="text-[11px] font-medium text-stone-500 uppercase tracking-wider">Laba / Rugi</p>
+              <p
+                className={`text-sm sm:text-base font-bold tabular-nums truncate ${
+                  grandNetProfit >= 0 ? 'text-emerald-700' : 'text-red-600'
+                }`}
+              >
                 {formatRp(grandNetProfit)}
               </p>
             </div>
@@ -135,29 +149,106 @@ export default async function BisnisPage() {
         </Card>
       </div>
 
-      {/* Tabs Analisis HPP, Komparasi Admin, & Buku Kas */}
+      {/* Tabs Mobile-Friendly */}
       {summaries && summaries.length > 0 ? (
         <Tabs defaultValue={isAdmin ? 'komparasi' : 'hpp'} className="w-full">
-          <TabsList className={`grid w-full ${isAdmin ? 'max-w-xl grid-cols-3' : 'max-w-md grid-cols-2'} bg-stone-200/70`}>
-            {isAdmin && <TabsTrigger value="komparasi">Komparasi Kelompok</TabsTrigger>}
-            <TabsTrigger value="hpp">Analisis HPP</TabsTrigger>
-            <TabsTrigger value="transaksi">Buku Kas (RAB & Panen)</TabsTrigger>
+          <TabsList className="flex w-full sm:w-fit h-auto p-1 bg-stone-200/80 rounded-lg gap-1">
+            {isAdmin && (
+              <TabsTrigger
+                value="komparasi"
+                className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
+              >
+                Komparasi
+              </TabsTrigger>
+            )}
+            <TabsTrigger
+              value="hpp"
+              className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
+            >
+              Analisis HPP
+            </TabsTrigger>
+            <TabsTrigger
+              value="transaksi"
+              className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
+            >
+              Buku Kas
+            </TabsTrigger>
           </TabsList>
 
-          {/* TAB KHUSUS ADMIN: TABEL PERBANDINGAN PERFORMA AGRIBISNIS ANTAR-KELOMPOK */}
+          {/* TAB KHUSUS ADMIN: KOMPARASI KELOMPOK (MOBILE CARDS + DESKTOP TABLE) */}
           {isAdmin && (
             <TabsContent value="komparasi" className="mt-4">
-              <Card className="border-stone-200/80 shadow-none">
+              {/* Tampilan Kartu Ringkas Khusus Mobile (< md) */}
+              <div className="md:hidden space-y-3">
+                {summaries.map((row: any) => {
+                  const profit = Number(row.net_profit || 0)
+                  return (
+                    <Card key={row.batch_id} className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <Badge variant="outline" className="rounded-md text-[10px] font-medium mb-1">
+                              {row.cohort_name} • {row.farm_group}
+                            </Badge>
+                            <h3 className="font-bold text-sm text-stone-900 truncate">
+                              {row.crop_name} {row.variety ? `(${row.variety})` : ''}
+                            </h3>
+                            <p className="text-[11px] text-stone-400">PIC: {row.owner_name}</p>
+                          </div>
+                          <Badge
+                            className={
+                              profit >= 0
+                                ? 'rounded-md bg-emerald-100 text-emerald-800 hover:bg-emerald-100 font-semibold tabular-nums shrink-0'
+                                : 'rounded-md bg-red-100 text-red-700 hover:bg-red-100 font-semibold tabular-nums shrink-0'
+                            }
+                          >
+                            {profit >= 0 ? '+' : ''}
+                            {formatRp(profit)}
+                          </Badge>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5 p-3 rounded-lg bg-stone-50 border border-stone-100 text-xs">
+                          <div>
+                            <span className="text-[11px] text-stone-400 block">Modal (RAB)</span>
+                            <span className="font-semibold text-red-600 tabular-nums">
+                              {formatRp(Number(row.total_expense || 0))}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-stone-400 block">Omzet Panen</span>
+                            <span className="font-semibold text-emerald-700 tabular-nums">
+                              {formatRp(Number(row.total_revenue || 0))}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-stone-400 block">Volume Panen</span>
+                            <span className="font-semibold text-stone-800 tabular-nums">{row.total_harvest_kg} kg</span>
+                          </div>
+                          <div>
+                            <span className="text-[11px] text-stone-400 block">HPP / Kg</span>
+                            <span className="font-semibold text-stone-900 tabular-nums">
+                              {formatRp(Number(row.hpp_per_kg || 0))}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+
+              {/* Tampilan Tabel Lengkap Khusus Desktop (>= md) */}
+              <Card className="hidden md:block rounded-xl border-stone-200/90 shadow-2xs bg-white">
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base font-semibold flex items-center gap-2">
-                    <BarChart3 className="w-4 h-4 text-emerald-700" /> Perbandingan HPP & Profitabilitas Kelompok
+                    <BarChart3 className="w-4 h-4 text-emerald-700" /> Perbandingan HPP &amp; Profitabilitas Kelompok
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
                   <table className="w-full text-sm text-left border-collapse">
                     <thead>
                       <tr className="border-b border-stone-200 text-stone-500 text-xs uppercase">
-                        <th className="py-2.5 px-3">Angkatan & Kelompok</th>
+                        <th className="py-2.5 px-3">Angkatan &amp; Kelompok</th>
                         <th className="py-2.5 px-3">Komoditas</th>
                         <th className="py-2.5 px-3">Modal (RAB)</th>
                         <th className="py-2.5 px-3">Panen</th>
@@ -171,29 +262,29 @@ export default async function BisnisPage() {
                         const profit = Number(row.net_profit || 0)
                         return (
                           <tr key={row.batch_id} className="hover:bg-stone-50/80">
-                            <td className="py-2.5 px-3 font-medium text-stone-800">
+                            <td className="py-3 px-3 font-medium text-stone-800">
                               {row.cohort_name} • {row.farm_group}
                               <span className="block text-xs text-stone-400 font-normal">PIC: {row.owner_name}</span>
                             </td>
-                            <td className="py-2.5 px-3 font-medium text-stone-800">
+                            <td className="py-3 px-3 font-medium text-stone-800">
                               {row.crop_name} {row.variety ? `(${row.variety})` : ''}
                             </td>
-                            <td className="py-2.5 px-3 text-red-600 font-medium">
+                            <td className="py-3 px-3 text-red-600 font-medium tabular-nums">
                               {formatRp(Number(row.total_expense || 0))}
                             </td>
-                            <td className="py-2.5 px-3 text-stone-700">{row.total_harvest_kg} kg</td>
-                            <td className="py-2.5 px-3 font-semibold text-stone-900">
+                            <td className="py-3 px-3 text-stone-700 tabular-nums">{row.total_harvest_kg} kg</td>
+                            <td className="py-3 px-3 font-semibold text-stone-900 tabular-nums">
                               {formatRp(Number(row.hpp_per_kg || 0))}
                             </td>
-                            <td className="py-2.5 px-3 text-emerald-700 font-medium">
+                            <td className="py-3 px-3 text-emerald-700 font-medium tabular-nums">
                               {formatRp(Number(row.total_revenue || 0))}
                             </td>
-                            <td className="py-2.5 px-3 text-right">
+                            <td className="py-3 px-3 text-right">
                               <Badge
                                 className={
                                   profit >= 0
-                                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
-                                    : 'bg-red-100 text-red-700 hover:bg-red-100'
+                                    ? 'rounded-md bg-emerald-100 text-emerald-800 hover:bg-emerald-100 tabular-nums'
+                                    : 'rounded-md bg-red-100 text-red-700 hover:bg-red-100 tabular-nums'
                                 }
                               >
                                 {profit >= 0 ? '+' : ''}
@@ -231,7 +322,7 @@ export default async function BisnisPage() {
           {/* TAB RIWAYAT PENGELUARAN & PANEN */}
           <TabsContent value="transaksi" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="border-stone-200/80 shadow-none">
+              <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-red-600 rotate-180" /> Rincian Pengeluaran (RAB)
@@ -240,11 +331,11 @@ export default async function BisnisPage() {
                 <CardContent className="space-y-2.5 text-xs">
                   {expenses && expenses.length > 0 ? (
                     expenses.map((exp: any) => (
-                      <div key={exp.id} className="flex justify-between items-start gap-2 py-2 border-b border-stone-100 last:border-0">
-                        <div className="space-y-0.5">
-                          <p className="font-semibold text-stone-800">{exp.item_name}</p>
+                      <div key={exp.id} className="flex justify-between items-start gap-2 py-2.5 border-b border-stone-100 last:border-0">
+                        <div className="space-y-1 min-w-0">
+                          <p className="font-semibold text-stone-800 break-words">{exp.item_name}</p>
                           <div className="flex flex-wrap items-center gap-1.5 text-stone-400">
-                            <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
+                            <Badge variant="outline" className="rounded-md text-[10px] py-0 px-1.5 font-normal">
                               {exp.category}
                             </Badge>
                             <span>
@@ -253,26 +344,28 @@ export default async function BisnisPage() {
                             </span>
                           </div>
                         </div>
-                        <span className="font-bold text-red-600 shrink-0">-{formatRp(Number(exp.total_cost))}</span>
+                        <span className="font-bold text-red-600 tabular-nums shrink-0">
+                          -{formatRp(Number(exp.total_cost))}
+                        </span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-stone-400 py-4 text-center">Belum ada catatan biaya.</p>
+                    <p className="text-stone-400 py-6 text-center">Belum ada catatan biaya.</p>
                   )}
                 </CardContent>
               </Card>
 
-              <Card className="border-stone-200/80 shadow-none">
+              <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-700" /> Rincian Panen & Penjualan
+                    <TrendingUp className="w-4 h-4 text-emerald-700" /> Rincian Panen &amp; Penjualan
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2.5 text-xs">
                   {harvests && harvests.length > 0 ? (
                     harvests.map((harv: any) => (
-                      <div key={harv.id} className="flex justify-between items-start gap-2 py-2 border-b border-stone-100 last:border-0">
-                        <div className="space-y-0.5">
+                      <div key={harv.id} className="flex justify-between items-start gap-2 py-2.5 border-b border-stone-100 last:border-0">
+                        <div className="space-y-1 min-w-0">
                           <p className="font-semibold text-stone-800">
                             {harv.batches?.crop_name}
                             {isAdmin && harv.batches?.farm_group ? ` (${harv.batches.farm_group})` : ''} ({harv.net_weight_kg} kg bersih)
@@ -281,11 +374,13 @@ export default async function BisnisPage() {
                             {harv.harvest_date} • {formatRp(Number(harv.selling_price_per_kg))}/kg • {harv.buyer_info || 'Penjualan'}
                           </p>
                         </div>
-                        <span className="font-bold text-emerald-700 shrink-0">+{formatRp(Number(harv.total_revenue))}</span>
+                        <span className="font-bold text-emerald-700 tabular-nums shrink-0">
+                          +{formatRp(Number(harv.total_revenue))}
+                        </span>
                       </div>
                     ))
                   ) : (
-                    <p className="text-stone-400 py-4 text-center">Belum ada catatan panen.</p>
+                    <p className="text-stone-400 py-6 text-center">Belum ada catatan panen.</p>
                   )}
                 </CardContent>
               </Card>
@@ -293,9 +388,15 @@ export default async function BisnisPage() {
           </TabsContent>
         </Tabs>
       ) : (
-        <p className="text-sm text-stone-500 bg-white p-8 rounded-xl border border-dashed border-stone-300 text-center">
-          Belum ada data tanaman pada kelompok Anda. Daftarkan tanaman terlebih dahulu di menu <strong>Kebun</strong>.
-        </p>
+        <div className="bg-white p-8 rounded-xl border border-dashed border-stone-300 text-center space-y-2">
+          <div className="w-10 h-10 rounded-xl bg-stone-100 text-stone-400 flex items-center justify-center mx-auto">
+            <Sprout className="w-5 h-5" />
+          </div>
+          <p className="text-sm font-medium text-stone-700">Belum ada data tanaman pada kelompok Anda</p>
+          <p className="text-xs text-stone-500">
+            Daftarkan tanaman terlebih dahulu di menu <strong>Kebun</strong> untuk mulai menghitung HPP.
+          </p>
+        </div>
       )}
     </div>
   )

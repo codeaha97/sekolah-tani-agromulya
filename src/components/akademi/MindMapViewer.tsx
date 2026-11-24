@@ -26,6 +26,11 @@ import {
   CornerDownRight,
   Trash2,
   Sprout,
+  Pencil,
+  Check,
+  X,
+  ChevronsDownUp,
+  ChevronsUpDown,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -47,7 +52,6 @@ const defaultEdges: Edge[] = [
   { id: 'e1-3', source: '1', target: '3', animated: true },
 ]
 
-// Styling kartu node agar cerah dan modern di mode Kanvas
 function styleNode(node: Node, isRoot: boolean): Node {
   return {
     ...node,
@@ -85,9 +89,11 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
   )
   const [edges, setEdges, onEdgesChange] = useEdgesState(rawEdges)
 
-  // State tambah cabang di Tree View
+  // State tambah & edit cabang di Tree View
   const [addingUnderId, setAddingUnderId] = useState<string | null>(null)
   const [newBranchLabel, setNewBranchLabel] = useState('')
+  const [editingNodeId, setEditingNodeId] = useState<string | null>(null)
+  const [editingNodeLabel, setEditingNodeLabel] = useState('')
   const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>({})
   const [saving, setSaving] = useState(false)
   const [savedToast, setSavedToast] = useState(false)
@@ -99,7 +105,6 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
     [setEdges]
   )
 
-  // Susun peta parent -> children dari nodes & edges untuk tampilan Tree View Mobile-Friendly
   const treeStructure = useMemo(() => {
     const targetIds = new Set(edges.map((e) => e.target))
     const roots = nodes.filter((n) => !targetIds.has(n.id))
@@ -151,14 +156,59 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
     setCollapsedIds((prev) => ({ ...prev, [parentId]: false }))
   }
 
+  const startEditingNode = (node: Node) => {
+    setEditingNodeId(node.id)
+    setEditingNodeLabel(String(node.data?.label || ''))
+    setAddingUnderId(null)
+  }
+
+  const handleSaveNodeEdit = (nodeId: string) => {
+    if (!editingNodeLabel.trim()) return
+    setNodes((prev) =>
+      prev.map((n) =>
+        n.id === nodeId
+          ? { ...n, data: { ...n.data, label: editingNodeLabel.trim() } }
+          : n
+      )
+    )
+    setEditingNodeId(null)
+    setEditingNodeLabel('')
+  }
+
+  // Hapus node beserta seluruh turunannya agar tidak menyisakan node yatim
   const handleDeleteNode = (nodeId: string) => {
-    setNodes((prev) => prev.filter((n) => n.id !== nodeId))
-    setEdges((prev) => prev.filter((e) => e.source !== nodeId && e.target !== nodeId))
+    const toRemove = new Set<string>([nodeId])
+    let added = true
+    while (added) {
+      added = false
+      edges.forEach((e) => {
+        if (toRemove.has(e.source) && !toRemove.has(e.target)) {
+          toRemove.add(e.target)
+          added = true
+        }
+      })
+    }
+
+    setNodes((prev) => prev.filter((n) => !toRemove.has(n.id)))
+    setEdges((prev) => prev.filter((e) => !toRemove.has(e.source) && !toRemove.has(e.target)))
+  }
+
+  const handleToggleAll = (collapse: boolean) => {
+    if (!collapse) {
+      setCollapsedIds({})
+      return
+    }
+    const next: Record<string, boolean> = {}
+    nodes.forEach((n) => {
+      if ((treeStructure.childrenMap[n.id]?.length || 0) > 0) {
+        next[n.id] = true
+      }
+    })
+    setCollapsedIds(next)
   }
 
   const handleSaveMap = async () => {
     setSaving(true)
-    // Bersihkan inline style sebelum simpan agar JSON tetap ringan
     const cleanNodes = nodes.map(({ style, ...rest }) => rest)
     await supabase
       .from('learning_modules')
@@ -169,7 +219,6 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
     setTimeout(() => setSavedToast(false), 2500)
   }
 
-  // Render rekursif cabang pohon konsep
   const renderTreeBranch = (node: Node, depth = 0, visited = new Set<string>()) => {
     if (visited.has(node.id)) return null
     visited.add(node.id)
@@ -177,88 +226,162 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
     const children = treeStructure.childrenMap[node.id] || []
     const isCollapsed = !!collapsedIds[node.id]
     const isRoot = depth === 0
+    const isEditing = editingNodeId === node.id
     const label = String(node.data?.label || 'Konsep')
 
     return (
-      <div key={node.id} className={depth > 0 ? 'ml-4 sm:ml-6 pl-3 border-l-2 border-emerald-200 space-y-2' : 'space-y-2.5'}>
+      <div
+        key={node.id}
+        className={
+          depth > 0
+            ? 'ml-3.5 sm:ml-6 pl-3 border-l-2 border-emerald-200/90 space-y-2'
+            : 'space-y-2.5'
+        }
+      >
         <div
           className={`flex items-center justify-between gap-2 p-3 rounded-xl border transition-all ${
             isRoot
-              ? 'bg-emerald-900 text-white border-emerald-800 shadow-sm'
+              ? 'bg-emerald-900 text-white border-emerald-800 shadow-2xs'
               : depth === 1
-              ? 'bg-emerald-50/70 text-emerald-950 border-emerald-200'
-              : 'bg-white text-stone-800 border-stone-200'
+              ? 'bg-emerald-50/70 text-emerald-950 border-emerald-200/90'
+              : 'bg-white text-stone-800 border-stone-200/90 shadow-2xs'
           }`}
         >
-          <div className="flex items-center gap-2 min-w-0">
-            {children.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => setCollapsedIds((p) => ({ ...p, [node.id]: !p[node.id] }))}
-                className={`p-0.5 rounded ${isRoot ? 'hover:bg-emerald-800 text-emerald-200' : 'hover:bg-stone-200/70 text-stone-500'}`}
-              >
-                {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-            ) : isRoot ? (
-              <Sprout className="w-4 h-4 text-emerald-300 shrink-0" />
-            ) : (
-              <CornerDownRight className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-            )}
-
-            <span className={`text-sm leading-snug break-words ${isRoot ? 'font-bold' : 'font-medium'}`}>
-              {label}
-            </span>
-          </div>
-
-          {!readOnly && (
-            <div className="flex items-center gap-1 shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setAddingUnderId(addingUnderId === node.id ? null : node.id)
-                  setNewBranchLabel('')
+          {isEditing ? (
+            <div className="flex-1 flex items-center gap-1.5">
+              <Input
+                autoFocus
+                value={editingNodeLabel}
+                onChange={(e) => setEditingNodeLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleSaveNodeEdit(node.id)
+                  if (e.key === 'Escape') setEditingNodeId(null)
                 }}
-                title="Tambah sub-cabang"
-                className={`p-1.5 rounded-lg text-xs flex items-center gap-1 transition-colors ${
-                  isRoot
-                    ? 'bg-emerald-800 hover:bg-emerald-700 text-emerald-100'
-                    : 'hover:bg-emerald-100 text-emerald-700'
-                }`}
+                className="h-8 text-xs bg-white text-stone-900 rounded-lg"
+              />
+              <button
+                type="button"
+                onClick={() => handleSaveNodeEdit(node.id)}
+                className="p-1.5 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 shrink-0"
+                title="Simpan Teks"
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline text-[11px]">Cabang</span>
+                <Check className="w-3.5 h-3.5" />
               </button>
-
-              {!isRoot && (
-                <button
-                  type="button"
-                  onClick={() => handleDeleteNode(node.id)}
-                  title="Hapus cabang"
-                  className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => setEditingNodeId(null)}
+                className={`p-1.5 rounded-lg shrink-0 ${
+                  isRoot ? 'bg-emerald-800 text-emerald-200' : 'bg-stone-100 text-stone-600'
+                }`}
+                title="Batal"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
             </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 min-w-0">
+                {children.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setCollapsedIds((p) => ({ ...p, [node.id]: !p[node.id] }))}
+                    className={`p-0.5 rounded-md transition-colors ${
+                      isRoot
+                        ? 'hover:bg-emerald-800 text-emerald-200'
+                        : 'hover:bg-stone-200/70 text-stone-500'
+                    }`}
+                  >
+                    {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  </button>
+                ) : isRoot ? (
+                  <Sprout className="w-4 h-4 text-emerald-300 shrink-0" />
+                ) : (
+                  <CornerDownRight className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                )}
+
+                <span className={`text-xs sm:text-sm leading-snug break-words ${isRoot ? 'font-bold' : 'font-semibold'}`}>
+                  {label}
+                </span>
+
+                {isCollapsed && children.length > 0 && (
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold tabular-nums shrink-0 ${
+                      isRoot ? 'bg-emerald-800 text-emerald-200' : 'bg-stone-200/80 text-stone-600'
+                    }`}
+                  >
+                    +{children.length}
+                  </span>
+                )}
+              </div>
+
+              {!readOnly && (
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddingUnderId(addingUnderId === node.id ? null : node.id)
+                      setEditingNodeId(null)
+                      setNewBranchLabel('')
+                    }}
+                    title="Tambah sub-cabang"
+                    className={`px-2 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+                      isRoot
+                        ? 'bg-emerald-800 hover:bg-emerald-700 text-emerald-100'
+                        : 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-700'
+                    }`}
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline text-[11px]">Cabang</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => startEditingNode(node)}
+                    title="Ubah teks konsep"
+                    className={`p-1.5 rounded-lg transition-colors ${
+                      isRoot
+                        ? 'text-emerald-200 hover:bg-emerald-800'
+                        : 'text-stone-400 hover:text-amber-600 hover:bg-amber-50'
+                    }`}
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+
+                  {!isRoot && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteNode(node.id)}
+                      title="Hapus cabang"
+                      className="p-1.5 rounded-lg text-stone-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {/* Form Input Sub-Cabang Langsung di Bawah Node */}
         {addingUnderId === node.id && (
-          <div className="ml-4 pl-3 border-l-2 border-amber-300 flex gap-2 items-center py-1">
+          <div className="ml-3.5 sm:ml-6 pl-3 border-l-2 border-amber-300 flex gap-2 items-center py-1">
             <Input
               autoFocus
               placeholder={`Sub-konsep dari "${label}"...`}
               value={newBranchLabel}
               onChange={(e) => setNewBranchLabel(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddChildNode(node.id)}
-              className="h-8 text-xs bg-white"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleAddChildNode(node.id)
+                if (e.key === 'Escape') setAddingUnderId(null)
+              }}
+              className="h-9 text-xs bg-white rounded-lg"
             />
             <Button
               type="button"
               size="sm"
               onClick={() => handleAddChildNode(node.id)}
-              className="h-8 px-3 text-xs bg-emerald-700 hover:bg-emerald-800 shrink-0"
+              className="h-9 px-3 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 shrink-0"
             >
               Tambah
             </Button>
@@ -275,16 +398,20 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
     )
   }
 
+  const hasCollapsedAny = Object.values(collapsedIds).some(Boolean)
+
   return (
     <div className="space-y-3">
       {/* Toolbar Pengalih Mode & Tombol Simpan */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-stone-200">
-        <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-lg">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-xl border border-stone-200/90 shadow-2xs">
+        <div className="flex items-center gap-1 bg-stone-200/80 p-1 rounded-lg">
           <button
             type="button"
             onClick={() => setViewMode('tree')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              viewMode === 'tree' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600 hover:text-stone-900'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+              viewMode === 'tree'
+                ? 'bg-white text-emerald-900 shadow-2xs'
+                : 'text-stone-600 hover:text-stone-900'
             }`}
           >
             <ListTree className="w-3.5 h-3.5" /> Pohon Konsep
@@ -292,42 +419,70 @@ export function MindMapViewer({ moduleId, initialNodes, initialEdges, readOnly =
           <button
             type="button"
             onClick={() => setViewMode('canvas')}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-              viewMode === 'canvas' ? 'bg-white text-emerald-800 shadow-xs' : 'text-stone-600 hover:text-stone-900'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+              viewMode === 'canvas'
+                ? 'bg-white text-emerald-900 shadow-2xs'
+                : 'text-stone-600 hover:text-stone-900'
             }`}
           >
             <Network className="w-3.5 h-3.5" /> Kanvas Visual
           </button>
         </div>
 
-        {!readOnly && (
-          <div className="flex items-center gap-2">
-            {savedToast && (
-              <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 text-[11px]">
-                Tersimpan!
-              </Badge>
-            )}
-            <Button
+        <div className="flex items-center gap-1.5">
+          {viewMode === 'tree' && nodes.length > 1 && (
+            <button
               type="button"
-              size="sm"
-              onClick={handleSaveMap}
-              disabled={saving}
-              className="bg-emerald-700 hover:bg-emerald-800 h-8 text-xs"
+              onClick={() => handleToggleAll(!hasCollapsedAny)}
+              title={hasCollapsedAny ? 'Buka semua cabang' : 'Lipat semua cabang'}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-600 text-xs font-medium transition-colors"
             >
-              <Save className="w-3.5 h-3.5 mr-1.5" /> {saving ? 'Menyimpan...' : 'Simpan Peta'}
-            </Button>
-          </div>
-        )}
+              {hasCollapsedAny ? (
+                <>
+                  <ChevronsUpDown className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Buka Semua</span>
+                </>
+              ) : (
+                <>
+                  <ChevronsDownUp className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Lipat Semua</span>
+                </>
+              )}
+            </button>
+          )}
+
+          {!readOnly && (
+            <>
+              {savedToast && (
+                <Badge
+                  variant="secondary"
+                  className="rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 text-[11px] font-semibold"
+                >
+                  Tersimpan!
+                </Badge>
+              )}
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleSaveMap}
+                disabled={saving}
+                className="rounded-lg bg-emerald-700 hover:bg-emerald-800 h-8 px-3 text-xs font-semibold shadow-2xs"
+              >
+                <Save className="w-3.5 h-3.5 mr-1.5" /> {saving ? 'Menyimpan...' : 'Simpan Peta'}
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
-      {/* MODE 1: POHON KONSEP (Default - Optimal di HP & PC) */}
+      {/* MODE 1: POHON KONSEP */}
       {viewMode === 'tree' ? (
-        <div className="bg-stone-50/80 p-3.5 sm:p-5 rounded-xl border border-stone-200 space-y-3">
+        <div className="bg-white p-3.5 sm:p-5 rounded-xl border border-stone-200/90 shadow-2xs space-y-3">
           {treeStructure.roots.map((rootNode) => renderTreeBranch(rootNode, 0))}
         </div>
       ) : (
-        /* MODE 2: KANVAS VISUAL TERANG (Untuk melihat peta jaringan utuh) */
-        <div className="h-[420px] md:h-[520px] w-full rounded-xl border border-stone-200 bg-white overflow-hidden">
+        /* MODE 2: KANVAS VISUAL TERANG */
+        <div className="h-[420px] md:h-[520px] w-full rounded-xl border border-stone-200/90 bg-white overflow-hidden shadow-2xs">
           <ReactFlow
             nodes={nodes}
             edges={edges}
