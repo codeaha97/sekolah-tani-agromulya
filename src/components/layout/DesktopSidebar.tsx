@@ -2,15 +2,16 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { Home, BookOpen, Sprout, Calculator, ShieldCheck, LogOut, UserCircle } from 'lucide-react'
+import { Home, BookOpen, Sprout, Calculator, UserCog, LogOut, UserCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import type { UserNavProfile } from '@/app/(dashboard)/layout'
 
-const baseNavItems = [
+const navItems = [
   { href: '/', label: 'Beranda', icon: Home },
   { href: '/akademi', label: 'Akademi & Mind Map', icon: BookOpen },
   { href: '/kebun', label: 'Kebun & Monitoring', icon: Sprout },
   { href: '/bisnis', label: 'Panen & Bisnis', icon: Calculator },
+  { href: '/profil', label: 'Profil & Pengaturan', icon: UserCog },
 ]
 
 export function DesktopSidebar({ profile }: { profile: UserNavProfile }) {
@@ -19,9 +20,6 @@ export function DesktopSidebar({ profile }: { profile: UserNavProfile }) {
   const supabase = createClient()
 
   const isAdmin = ['admin', 'mentor'].includes(profile.role)
-  const navItems = isAdmin
-    ? [...baseNavItems, { href: '/admin', label: 'Panel Admin', icon: ShieldCheck }]
-    : baseNavItems
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -60,19 +58,19 @@ export function DesktopSidebar({ profile }: { profile: UserNavProfile }) {
         })}
       </nav>
 
-      {/* Kartu Identitas User & Tombol Keluar */}
       <div className="pt-4 border-t border-emerald-900 space-y-2 mt-auto">
-        <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-emerald-900/50">
+        <Link
+          href="/profil"
+          className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg bg-emerald-900/50 hover:bg-emerald-900 transition-colors"
+        >
           <UserCircle className="w-8 h-8 text-emerald-300 shrink-0" />
           <div className="min-w-0">
             <p className="text-xs font-semibold text-white truncate">{profile.full_name}</p>
             <p className="text-[11px] text-emerald-300 truncate">
-              {isAdmin
-                ? 'Admin Agro Mulya'
-                : `${profile.cohort_name || '-'} • ${profile.farm_group || '-'}`}
+              {isAdmin ? 'Admin Agro Mulya' : `${profile.cohort_name || '-'} • ${profile.farm_group || '-'}`}
             </p>
           </div>
-        </div>
+        </Link>
 
         <button
           onClick={handleLogout}

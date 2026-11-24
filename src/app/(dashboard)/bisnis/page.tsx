@@ -5,7 +5,7 @@ import { BusinessActionModals } from '@/components/bisnis/BusinessActionModals'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import { Wallet, TrendingUp, Scale, ArrowDownRight, ArrowUpRight } from 'lucide-react'
+import { Wallet, TrendingUp, Scale, ArrowDownRight, ArrowUpRight, BarChart3 } from 'lucide-react'
 
 const formatRp = (val: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
@@ -16,9 +16,15 @@ export default async function BisnisPage() {
   if (!user) redirect('/login')
 
   const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+  const isAdmin = ['admin', 'mentor'].includes(profile?.role || '')
 
-  let summaryQuery = supabase.from('batch_business_summary').select('*')
-  if (profile?.role === 'peserta' && profile.cohort_name && profile.farm_group) {
+  let summaryQuery = supabase
+    .from('batch_business_summary')
+    .select('*')
+    .order('cohort_name', { ascending: true })
+    .order('farm_group', { ascending: true })
+
+  if (!isAdmin && profile?.cohort_name && profile?.farm_group) {
     summaryQuery = summaryQuery
       .eq('cohort_name', profile.cohort_name)
       .eq('farm_group', profile.farm_group)
@@ -31,18 +37,18 @@ export default async function BisnisPage() {
     batchIds.length > 0
       ? supabase
           .from('expenses')
-          .select('*, batches(crop_name, variety)')
+          .select('*, batches(crop_name, variety, cohort_name, farm_group)')
           .in('batch_id', batchIds)
           .order('expense_date', { ascending: false })
-          .limit(15)
+          .limit(25)
       : Promise.resolve({ data: [] }),
     batchIds.length > 0
       ? supabase
           .from('harvest_logs')
-          .select('*, batches(crop_name, variety)')
+          .select('*, batches(crop_name, variety, cohort_name, farm_group)')
           .in('batch_id', batchIds)
           .order('harvest_date', { ascending: false })
-          .limit(15)
+          .limit(25)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -57,10 +63,12 @@ export default async function BisnisPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-stone-200">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-stone-900">
-            {profile?.role === 'peserta' ? `Agribisnis ${profile.farm_group}` : 'Rekap Agribisnis Kelas'}
+            {!isAdmin ? `Agribisnis ${profile?.farm_group}` : 'Rekap & Komparasi Agribisnis Kelas'}
           </h1>
           <p className="text-sm text-stone-500">
-            Analisis HPP per kilogram, pencatatan RAB, dan realisasi omzet panen.
+            {!isAdmin
+              ? 'Analisis HPP per kilogram, pencatatan RAB, dan realisasi omzet panen kelompok.'
+              : 'Evaluasi efisiensi biaya produksi (HPP), volume panen, dan profitabilitas lintas kelompok.'}
           </p>
         </div>
 
@@ -127,15 +135,82 @@ export default async function BisnisPage() {
         </Card>
       </div>
 
-      {/* Tabs Analisis HPP vs Buku Kas */}
+      {/* Tabs Analisis HPP, Komparasi Admin, & Buku Kas */}
       {summaries && summaries.length > 0 ? (
-        <Tabs defaultValue="hpp" className="w-full">
-          <TabsList className="grid w-full max-w-md grid-cols-2 bg-stone-200/70">
-            <TabsTrigger value="hpp">Analisis HPP per Tanaman</TabsTrigger>
+        <Tabs defaultValue={isAdmin ? 'komparasi' : 'hpp'} className="w-full">
+          <TabsList className={`grid w-full ${isAdmin ? 'max-w-xl grid-cols-3' : 'max-w-md grid-cols-2'} bg-stone-200/70`}>
+            {isAdmin && <TabsTrigger value="komparasi">Komparasi Kelompok</TabsTrigger>}
+            <TabsTrigger value="hpp">Analisis HPP</TabsTrigger>
             <TabsTrigger value="transaksi">Buku Kas (RAB & Panen)</TabsTrigger>
           </TabsList>
 
-          {/* TAB 1: KARTU HPP PER KOMODITAS */}
+          {/* TAB KHUSUS ADMIN: TABEL PERBANDINGAN PERFORMA AGRIBISNIS ANTAR-KELOMPOK */}
+          {isAdmin && (
+            <TabsContent value="komparasi" className="mt-4">
+              <Card className="border-stone-200/80 shadow-none">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base font-semibold flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4 text-emerald-700" /> Perbandingan HPP & Profitabilitas Kelompok
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="overflow-x-auto">
+                  <table className="w-full text-sm text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-stone-200 text-stone-500 text-xs uppercase">
+                        <th className="py-2.5 px-3">Angkatan & Kelompok</th>
+                        <th className="py-2.5 px-3">Komoditas</th>
+                        <th className="py-2.5 px-3">Modal (RAB)</th>
+                        <th className="py-2.5 px-3">Panen</th>
+                        <th className="py-2.5 px-3">HPP / Kg</th>
+                        <th className="py-2.5 px-3">Omzet</th>
+                        <th className="py-2.5 px-3 text-right">Laba / Rugi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100">
+                      {summaries.map((row: any) => {
+                        const profit = Number(row.net_profit || 0)
+                        return (
+                          <tr key={row.batch_id} className="hover:bg-stone-50/80">
+                            <td className="py-2.5 px-3 font-medium text-stone-800">
+                              {row.cohort_name} • {row.farm_group}
+                              <span className="block text-xs text-stone-400 font-normal">PIC: {row.owner_name}</span>
+                            </td>
+                            <td className="py-2.5 px-3 font-medium text-stone-800">
+                              {row.crop_name} {row.variety ? `(${row.variety})` : ''}
+                            </td>
+                            <td className="py-2.5 px-3 text-red-600 font-medium">
+                              {formatRp(Number(row.total_expense || 0))}
+                            </td>
+                            <td className="py-2.5 px-3 text-stone-700">{row.total_harvest_kg} kg</td>
+                            <td className="py-2.5 px-3 font-semibold text-stone-900">
+                              {formatRp(Number(row.hpp_per_kg || 0))}
+                            </td>
+                            <td className="py-2.5 px-3 text-emerald-700 font-medium">
+                              {formatRp(Number(row.total_revenue || 0))}
+                            </td>
+                            <td className="py-2.5 px-3 text-right">
+                              <Badge
+                                className={
+                                  profit >= 0
+                                    ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-100'
+                                    : 'bg-red-100 text-red-700 hover:bg-red-100'
+                                }
+                              >
+                                {profit >= 0 ? '+' : ''}
+                                {formatRp(profit)}
+                              </Badge>
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
+
+          {/* TAB KARTU HPP PER KOMODITAS */}
           <TabsContent value="hpp" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {summaries.map((item) => (
@@ -153,7 +228,7 @@ export default async function BisnisPage() {
             </div>
           </TabsContent>
 
-          {/* TAB 2: RIWAYAT PENGELUARAN & PANEN */}
+          {/* TAB RIWAYAT PENGELUARAN & PANEN */}
           <TabsContent value="transaksi" className="mt-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Card className="border-stone-200/80 shadow-none">
@@ -168,12 +243,13 @@ export default async function BisnisPage() {
                       <div key={exp.id} className="flex justify-between items-start gap-2 py-2 border-b border-stone-100 last:border-0">
                         <div className="space-y-0.5">
                           <p className="font-semibold text-stone-800">{exp.item_name}</p>
-                          <div className="flex items-center gap-1.5 text-stone-400">
+                          <div className="flex flex-wrap items-center gap-1.5 text-stone-400">
                             <Badge variant="outline" className="text-[10px] py-0 px-1.5 font-normal">
                               {exp.category}
                             </Badge>
                             <span>
-                              {exp.batches?.crop_name} • {exp.quantity} {exp.unit}
+                              {exp.batches?.crop_name}
+                              {isAdmin && exp.batches?.farm_group ? ` (${exp.batches.farm_group})` : ''} • {exp.quantity} {exp.unit}
                             </span>
                           </div>
                         </div>
@@ -198,7 +274,8 @@ export default async function BisnisPage() {
                       <div key={harv.id} className="flex justify-between items-start gap-2 py-2 border-b border-stone-100 last:border-0">
                         <div className="space-y-0.5">
                           <p className="font-semibold text-stone-800">
-                            {harv.batches?.crop_name} ({harv.net_weight_kg} kg bersih)
+                            {harv.batches?.crop_name}
+                            {isAdmin && harv.batches?.farm_group ? ` (${harv.batches.farm_group})` : ''} ({harv.net_weight_kg} kg bersih)
                           </p>
                           <p className="text-stone-400">
                             {harv.harvest_date} • {formatRp(Number(harv.selling_price_per_kg))}/kg • {harv.buyer_info || 'Penjualan'}

@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Trash2, BookOpen, ListChecks, Network, Pencil } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
@@ -30,11 +30,13 @@ interface SopTemplateItem {
 }
 
 export function AdminCurriculumManager({
-  modules,
-  sopTemplates,
+  modules = [],
+  sopTemplates = [],
+  mode = 'all',
 }: {
-  modules: LearningModuleItem[]
-  sopTemplates: SopTemplateItem[]
+  modules?: LearningModuleItem[]
+  sopTemplates?: SopTemplateItem[]
+  mode?: 'all' | 'module' | 'sop'
 }) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -125,126 +127,133 @@ export function AdminCurriculumManager({
     return acc
   }, {} as Record<string, SopTemplateItem[]>)
 
+  const showModules = mode === 'all' || mode === 'module'
+  const showSops = mode === 'all' || mode === 'sop'
+
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={mode === 'all' ? 'grid grid-cols-1 lg:grid-cols-2 gap-6' : 'space-y-4'}>
         {/* DAFTAR MATERI KELAS */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-emerald-700" /> Daftar Materi Kelas ({modules.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2.5">
-            {modules.length > 0 ? (
-              modules.map((mod) => (
-                <div
-                  key={mod.id}
-                  className="flex items-center justify-between gap-2 p-3 rounded-xl border border-stone-200 bg-white"
-                >
-                  <div className="min-w-0">
-                    <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 text-[10px] mb-1">
-                      {mod.category}
-                    </Badge>
-                    <p className="text-sm font-medium text-stone-800 truncate">{mod.title}</p>
+        {showModules && (
+          <Card className="border-stone-200/80 shadow-none">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-emerald-700" /> Daftar Materi Kelas ({modules.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2.5">
+              {modules.length > 0 ? (
+                modules.map((mod) => (
+                  <div
+                    key={mod.id}
+                    className="flex items-center justify-between gap-2 p-3 rounded-xl border border-stone-200 bg-white"
+                  >
+                    <div className="min-w-0">
+                      <Badge variant="secondary" className="bg-emerald-50 text-emerald-800 text-[10px] mb-1">
+                        {mod.category}
+                      </Badge>
+                      <p className="text-sm font-medium text-stone-800 truncate">{mod.title}</p>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Link
+                        href={`/akademi/${mod.id}`}
+                        title="Edit Mind Map"
+                        className="p-2 rounded-lg text-emerald-700 hover:bg-emerald-50"
+                      >
+                        <Network className="w-4 h-4" />
+                      </Link>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => openEditModule(mod)}
+                        title="Edit Materi"
+                        className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        disabled={deletingId === mod.id}
+                        onClick={() => handleDeleteModule(mod.id)}
+                        title="Hapus Materi"
+                        className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Link
-                      href={`/akademi/${mod.id}`}
-                      title="Edit Mind Map"
-                      className="p-2 rounded-lg text-emerald-700 hover:bg-emerald-50"
-                    >
-                      <Network className="w-4 h-4" />
-                    </Link>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditModule(mod)}
-                      title="Edit Materi"
-                      className="text-amber-600 hover:text-amber-700 hover:bg-amber-50 h-8 w-8"
-                    >
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      disabled={deletingId === mod.id}
-                      onClick={() => handleDeleteModule(mod.id)}
-                      title="Hapus Materi"
-                      className="text-red-500 hover:text-red-700 hover:bg-red-50 h-8 w-8"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-stone-500">Belum ada materi kelas yang dipublikasikan.</p>
-            )}
-          </CardContent>
-        </Card>
+                ))
+              ) : (
+                <p className="text-sm text-stone-500">Belum ada materi kelas yang dipublikasikan.</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* DAFTAR TEMPLATE SOP PER KOMODITAS */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <ListChecks className="w-4 h-4 text-amber-600" /> Master Template SOP ({Object.keys(groupedSop).length} Komoditas)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4 max-h-[540px] overflow-y-auto pr-1">
-            {Object.keys(groupedSop).length > 0 ? (
-              Object.entries(groupedSop).map(([cropName, steps]) => (
-                <div key={cropName} className="rounded-xl border border-stone-200 p-3 bg-stone-50/60 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h4 className="font-bold text-sm text-emerald-900">{cropName}</h4>
-                    <Badge variant="outline" className="text-[10px]">
-                      {steps.length} Tahapan
-                    </Badge>
-                  </div>
-                  <div className="space-y-1.5">
-                    {steps
-                      .sort((a, b) => a.step_order - b.step_order)
-                      .map((step) => (
-                        <div
-                          key={step.id}
-                          className="flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-stone-100 text-xs"
-                        >
-                          <div className="min-w-0">
-                            <span className="font-semibold text-stone-500 mr-1.5">#{step.step_order}</span>
-                            <span className="text-stone-800">{step.phase_name}</span>
-                            <span className="ml-2 text-emerald-700 font-medium">(HST {step.target_hst})</span>
+        {showSops && (
+          <Card className="border-stone-200/80 shadow-none">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <ListChecks className="w-4 h-4 text-amber-600" /> Master Template SOP ({Object.keys(groupedSop).length} Komoditas)
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+              {Object.keys(groupedSop).length > 0 ? (
+                Object.entries(groupedSop).map(([cropName, steps]) => (
+                  <div key={cropName} className="rounded-xl border border-stone-200 p-3 bg-stone-50/60 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-sm text-emerald-900">{cropName}</h4>
+                      <Badge variant="outline" className="text-[10px]">
+                        {steps.length} Tahapan
+                      </Badge>
+                    </div>
+                    <div className="space-y-1.5">
+                      {steps
+                        .sort((a, b) => a.step_order - b.step_order)
+                        .map((step) => (
+                          <div
+                            key={step.id}
+                            className="flex items-center justify-between gap-2 bg-white px-2.5 py-1.5 rounded-lg border border-stone-100 text-xs"
+                          >
+                            <div className="min-w-0">
+                              <span className="font-semibold text-stone-500 mr-1.5">#{step.step_order}</span>
+                              <span className="text-stone-800">{step.phase_name}</span>
+                              <span className="ml-2 text-emerald-700 font-medium">(HST {step.target_hst})</span>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => openEditSop(step)}
+                                className="text-stone-400 hover:text-amber-600 p-1"
+                                title="Edit tahapan SOP"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={deletingId === step.id}
+                                onClick={() => handleDeleteSop(step.id)}
+                                className="text-stone-400 hover:text-red-600 p-1"
+                                title="Hapus tahapan SOP"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              onClick={() => openEditSop(step)}
-                              className="text-stone-400 hover:text-amber-600 p-1"
-                              title="Edit tahapan SOP"
-                            >
-                              <Pencil className="w-3.5 h-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              disabled={deletingId === step.id}
-                              onClick={() => handleDeleteSop(step.id)}
-                              className="text-stone-400 hover:text-red-600 p-1"
-                              title="Hapus tahapan SOP"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                    </div>
                   </div>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-stone-500">Belum ada template SOP.</p>
-            )}
-          </CardContent>
-        </Card>
+                ))
+              ) : (
+                <p className="text-sm text-stone-500">Belum ada template SOP.</p>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* DIALOG EDIT MATERI */}
@@ -261,7 +270,9 @@ export function AdminCurriculumManager({
             <div className="space-y-1">
               <Label>Kategori</Label>
               <Select value={modCategory} onValueChange={(val) => val && setModCategory(val)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-full justify-between">
+                  <span>{modCategory}</span>
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="Kesehatan Tanah">Kesehatan Tanah</SelectItem>
                   <SelectItem value="Pembibitan">Pembibitan</SelectItem>

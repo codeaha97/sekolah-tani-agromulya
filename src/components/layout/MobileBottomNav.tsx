@@ -2,24 +2,21 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, BookOpen, Sprout, Calculator, ShieldCheck } from 'lucide-react'
+import { Home, BookOpen, Sprout, Calculator, UserCog } from 'lucide-react'
 
-const baseNavItems = [
+const navItems = [
   { href: '/', label: 'Beranda', icon: Home },
   { href: '/akademi', label: 'Akademi', icon: BookOpen },
   { href: '/kebun', label: 'Kebun', icon: Sprout },
   { href: '/bisnis', label: 'Bisnis', icon: Calculator },
+  { href: '/profil', label: 'Profil', icon: UserCog },
 ]
 
-export function MobileBottomNav({ isAdmin = false }: { isAdmin?: boolean }) {
+export function MobileBottomNav() {
   const pathname = usePathname()
 
-  const navItems = isAdmin
-    ? [...baseNavItems, { href: '/admin', label: 'Admin', icon: ShieldCheck }]
-    : baseNavItems
-
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-stone-200 px-1 py-2 flex justify-around items-center z-50">
+    <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white/95 backdrop-blur border-t border-stone-200 px-1 py-2 flex justify-around items-center z-[9999]">
       {navItems.map((item) => {
         const Icon = item.icon
         const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href))

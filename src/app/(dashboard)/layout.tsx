@@ -46,7 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       </main>
 
       {/* BOTTOM NAVIGATION BAR MOBILE */}
-      <MobileBottomNav isAdmin={['admin', 'mentor'].includes(userProfile.role)} />
+      <MobileBottomNav/>
     </div>
   )
 }

@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Sprout } from 'lucide-react'
+import { Sprout, Eye, EyeOff } from 'lucide-react'
 
 const COHORT_OPTIONS = ['Angkatan 1', 'Angkatan 2', 'Angkatan 3', 'Angkatan 4', 'Angkatan 5']
 const GROUP_OPTIONS = ['Kelompok 1', 'Kelompok 2', 'Kelompok 3', 'Kelompok 4', 'Kelompok 5', 'Kelompok 6']
@@ -19,10 +19,12 @@ export default function RegisterPage() {
   const [phoneNumber, setPhoneNumber] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [cohortName, setCohortName] = useState('Angkatan 1')
   const [farmGroup, setFarmGroup] = useState('Kelompok 1')
   const [role, setRole] = useState<'peserta' | 'admin'>('peserta')
   const [adminCode, setAdminCode] = useState('')
+  const [showAdminCode, setShowAdminCode] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -147,13 +149,24 @@ export default function RegisterPage() {
             ) : (
               <div className="space-y-1">
                 <Label className="text-amber-700">Kode Akses Admin / Mentor</Label>
-                <Input
-                  type="password"
-                  placeholder="Masukkan kode undangan koordinator"
-                  value={adminCode}
-                  onChange={(e) => setAdminCode(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    type={showAdminCode ? 'text' : 'password'}
+                    placeholder="Masukkan kode undangan koordinator"
+                    value={adminCode}
+                    onChange={(e) => setAdminCode(e.target.value)}
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminCode((prev) => !prev)}
+                    className="absolute inset-y-0 right-0 flex items-center px-3 text-stone-400 hover:text-stone-600"
+                    aria-label={showAdminCode ? 'Sembunyikan kode akses' : 'Lihat kode akses'}
+                  >
+                    {showAdminCode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -164,7 +177,24 @@ export default function RegisterPage() {
 
             <div className="space-y-1">
               <Label>Kata Sandi (Minimal 6 karakter)</Label>
-              <Input type="password" minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <div className="relative">
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-stone-400 hover:text-stone-600"
+                  aria-label={showPassword ? 'Sembunyikan kata sandi' : 'Lihat kata sandi'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </div>
 
             <Button type="submit" disabled={loading} className="w-full bg-emerald-700 hover:bg-emerald-800">

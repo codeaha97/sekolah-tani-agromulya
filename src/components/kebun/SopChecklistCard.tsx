@@ -145,7 +145,7 @@ export function SopChecklistCard({ batchId, cropName, plantingDate, steps, canEd
                     </p>
                     {step.is_completed && step.completer?.full_name && (
                       <p className="text-[11px] text-emerald-700 mt-0.5">
-                        Dikerjakan oleh {step.completer.full_name}
+                        Ditandai selesai oleh {step.completer.full_name}
                       </p>
                     )}
                   </div>
