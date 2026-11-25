@@ -1,14 +1,30 @@
 import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MindMapViewer } from '@/components/akademi/MindMapViewer'
+import { ModuleDiscussionBoard } from '@/components/akademi/ModuleDiscussionBoard'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, Network, BookOpen } from 'lucide-react'
+import { ArrowLeft, FileText, Network, BookOpen, MessageSquare } from 'lucide-react'
 
 export default async function ModuleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: mod } = await supabase.from('learning_modules').select('*').eq('id', id).single()
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const [{ data: mod }, { data: currentProfile }, { data: rawDiscussions }, { data: allProfiles }] =
+    await Promise.all([
+      supabase.from('learning_modules').select('*').eq('id', id).single(),
+      supabase.from('profiles').select('role').eq('id', user.id).single(),
+      supabase
+        .from('module_discussions')
+        .select('*')
+        .eq('module_id', id)
+        .order('created_at', { ascending: true }),
+      supabase.from('profiles').select('id, full_name, role, cohort_name, farm_group'),
+    ])
 
   if (!mod) {
     return (
@@ -26,6 +42,22 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
       </div>
     )
   }
+
+  const isAdmin = ['admin', 'mentor'].includes(currentProfile?.role || '')
+  const profileMap = new Map((allProfiles || []).map((p: any) => [p.id, p]))
+
+  // Urutkan utas utama terbaru di atas, sementara balasan tetap kronologis
+  const discussions = (rawDiscussions || [])
+    .map((item: any) => ({
+      ...item,
+      author: profileMap.get(item.user_id) || null,
+    }))
+    .sort((a: any, b: any) => {
+      if (!a.parent_id && !b.parent_id) {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      }
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    })
 
   return (
     <div className="space-y-5">
@@ -48,20 +80,26 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      {/* Tab Ringkasan & Mind Map */}
+      {/* Tab Ringkasan, Mind Map & Forum Diskusi */}
       <Tabs defaultValue="ringkasan" className="w-full">
         <TabsList className="flex w-full sm:w-fit h-auto p-1 bg-stone-200/80 rounded-lg gap-1">
           <TabsTrigger
             value="ringkasan"
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold whitespace-nowrap"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap"
           >
-            <FileText className="w-3.5 h-3.5" /> Ringkasan Materi
+            <FileText className="w-3.5 h-3.5" /> Ringkasan
           </TabsTrigger>
           <TabsTrigger
             value="mindmap"
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-xs font-semibold whitespace-nowrap"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap"
           >
-            <Network className="w-3.5 h-3.5" /> Mind Mapping
+            <Network className="w-3.5 h-3.5" /> Mind Map
+          </TabsTrigger>
+          <TabsTrigger
+            value="diskusi"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-md px-3 sm:px-4 py-2 text-xs font-semibold whitespace-nowrap"
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> Diskusi ({discussions.length})
           </TabsTrigger>
         </TabsList>
 
@@ -84,6 +122,15 @@ export default async function ModuleDetailPage({ params }: { params: Promise<{ i
             moduleId={mod.id}
             initialNodes={mod.mindmap_json?.nodes}
             initialEdges={mod.mindmap_json?.edges}
+          />
+        </TabsContent>
+
+        <TabsContent value="diskusi" className="mt-4">
+          <ModuleDiscussionBoard
+            moduleId={mod.id}
+            currentUserId={user.id}
+            isAdmin={isAdmin}
+            discussions={discussions}
           />
         </TabsContent>
       </Tabs>

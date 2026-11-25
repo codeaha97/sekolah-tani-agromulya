@@ -21,6 +21,7 @@ import {
   ExternalLink,
   ClipboardList,
 } from 'lucide-react'
+import { MonitoringLogCard } from '@/components/kebun/MonitoringLogCard'
 
 const formatRp = (val: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
@@ -221,11 +222,16 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ ba
 
       {/* Riwayat Pengamatan Lapangan */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
           <h2 className="text-base font-bold text-stone-900 flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-emerald-700" />
             Riwayat Pengamatan Lapangan ({logs?.length || 0})
           </h2>
+          {canEdit && logs && logs.length > 0 && (
+            <p className="text-[11px] text-stone-400 sm:hidden">
+              Ketuk kartu untuk edit • Geser kiri untuk hapus
+            </p>
+          )}
         </div>
 
         {logs && logs.length > 0 ? (
@@ -234,86 +240,19 @@ export default async function BatchDetailPage({ params }: { params: Promise<{ ba
               .slice()
               .reverse()
               .map((log: any) => (
-                <div
+                <MonitoringLogCard
                   key={log.id}
-                  className="bg-white p-4 rounded-xl border border-stone-200/90 shadow-2xs space-y-3"
-                >
-                  {/* Baris Atas: HST, Tanggal & Metrik Cepat */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <Badge className="rounded-md bg-emerald-100 text-emerald-800 hover:bg-emerald-100 font-bold text-xs tabular-nums">
-                          HST {log.hst}
-                        </Badge>
-                        <span className="text-xs font-medium text-stone-600">{log.recorded_date}</span>
-                      </div>
-                      <p className="text-[11px] text-stone-400 mt-1">
-                        Dicatat oleh:{' '}
-                        <strong className="text-stone-600">{log.recorder?.full_name || 'Anggota Kelompok'}</strong>
-                      </p>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <span className="px-2.5 py-1 rounded-md bg-stone-100 text-stone-800 font-semibold tabular-nums">
-                        Tinggi: {log.avg_height_cm} cm
-                      </span>
-                      <span className="px-2.5 py-1 rounded-md bg-amber-50 text-amber-800 font-semibold tabular-nums">
-                        pH: {log.soil_ph}
-                      </span>
-                      <span className="px-2.5 py-1 rounded-md bg-emerald-50 text-emerald-800 font-semibold tabular-nums">
-                        Hidup: {log.alive_count} btg
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Detail Catatan Lapangan */}
-                  <div className="space-y-2 text-xs">
-                    {log.general_notes && (
-                      <p className="text-stone-700 leading-relaxed">
-                        <strong className="text-stone-900">Kondisi Umum:</strong> {log.general_notes}
-                      </p>
-                    )}
-
-                    {log.treatment_applied && (
-                      <div className="text-stone-700 bg-stone-50 border border-stone-200/70 px-3 py-2 rounded-lg">
-                        <strong className="text-stone-900">Perlakuan / Pupuk:</strong> {log.treatment_applied}
-                      </div>
-                    )}
-
-                    {log.pest_disease_notes && (
-                      <div className="text-amber-900 bg-amber-50 border border-amber-200/80 px-3 py-2 rounded-lg">
-                        <strong>Catatan Hama/Penyakit:</strong> {log.pest_disease_notes}
-                      </div>
-                    )}
-
-                    {log.mentor_feedback && (
-                      <div className="text-emerald-950 bg-emerald-50/90 border border-emerald-200 px-3 py-2 rounded-lg">
-                        <strong className="text-emerald-800">Arahan Mentor:</strong> {log.mentor_feedback}
-                      </div>
-                    )}
-
-                    {log.photo_url && (
-                      <div className="pt-0.5">
-                        <a
-                          href={log.photo_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-stone-100 hover:bg-emerald-50 text-emerald-700 font-semibold transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" /> Lihat Foto Dokumentasi
-                        </a>
-                      </div>
-                    )}
-
-                    {/* Kontrol Arahan & Hapus Log Khusus Admin / Mentor */}
-                    {isAdmin && <MentorLogActions logId={log.id} initialFeedback={log.mentor_feedback} />}
-                  </div>
-                </div>
+                  log={log}
+                  canEdit={canEdit}
+                  isAdmin={isAdmin}
+                />
               ))}
           </div>
         ) : (
           <div className="bg-white p-6 rounded-xl border border-dashed border-stone-300 text-center">
-            <p className="text-xs sm:text-sm text-stone-500">Belum ada log pengamatan untuk tanaman ini.</p>
+            <p className="text-xs sm:text-sm text-stone-500">
+              Belum ada log pengamatan untuk tanaman ini.
+            </p>
           </div>
         )}
       </div>

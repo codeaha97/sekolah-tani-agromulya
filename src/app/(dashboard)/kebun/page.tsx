@@ -67,7 +67,7 @@ export default async function KebunPage() {
             <div className="space-y-1 min-w-0">
               <div className="flex flex-wrap items-center gap-1.5">
                 <Badge variant="outline" className="rounded-md text-[10px] font-medium">
-                  {batch.cohort_name || 'Kelas'} • {batch.farm_group || 'Demplot'}
+                  {batch.cohort_name || 'Kelas'} • {batch.farm_group || 'Bedengan'}
                 </Badge>
               </div>
               <CardTitle className="text-base font-bold text-stone-900 group-hover:text-emerald-800 transition-colors truncate">

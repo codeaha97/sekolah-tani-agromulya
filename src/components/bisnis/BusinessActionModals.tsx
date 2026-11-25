@@ -13,7 +13,7 @@ import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select'
-import { Receipt, Scale, AlertCircle } from 'lucide-react'
+import { Receipt, Scale, AlertCircle, Layers } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
@@ -21,9 +21,12 @@ import { cn } from '@/lib/utils'
 interface BatchOption {
   batch_id: string
   crop_name: string
+  initial_plant_count?: number
 }
 
-const EXPENSE_CATEGORIES = [
+export const EXPENSE_CATEGORIES = [
+  'Sewa & Olah Lahan',
+  'Infrastruktur & Irigasi',
   'Benih/Bibit',
   'Media & Pupuk Dasar',
   'POC & Pestisida Nabati',
@@ -38,13 +41,16 @@ const formatRp = (val: number) =>
 export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
   const [openExpense, setOpenExpense] = useState(false)
   const [openHarvest, setOpenHarvest] = useState(false)
-  const [selectedBatch, setSelectedBatch] = useState(batches[0]?.batch_id || '')
+
+  // 'GENERAL' = Biaya Umum Lahan, 'SPLIT_EQUAL' = Bagi Rata ke Semua Batch, atau UUID batch spesifik
+  const [expenseTarget, setExpenseTarget] = useState<string>(batches[0]?.batch_id || 'GENERAL')
+  const [harvestBatch, setHarvestBatch] = useState<string>(batches[0]?.batch_id || '')
 
   // State Biaya
-  const [category, setCategory] = useState('Media & Pupuk Dasar')
+  const [category, setCategory] = useState('Sewa & Olah Lahan')
   const [itemName, setItemName] = useState('')
   const [qty, setQty] = useState('1')
-  const [unit, setUnit] = useState('kg')
+  const [unit, setUnit] = useState('paket')
   const [unitPrice, setUnitPrice] = useState('')
 
   // State Panen
@@ -58,31 +64,82 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
   const supabase = createClient()
   const router = useRouter()
 
-  const selectedBatchLabel =
-    batches.find((b) => b.batch_id === selectedBatch)?.crop_name || 'Pilih komoditas tanaman'
+  const getExpenseTargetLabel = () => {
+    if (expenseTarget === 'GENERAL') return 'Umum Lahan (Non-Komoditas / Overhead)'
+    if (expenseTarget === 'SPLIT_EQUAL') return `Bagi Rata ke Semua Tanaman (${batches.length} Batch)`
+    return batches.find((b) => b.batch_id === expenseTarget)?.crop_name || 'Pilih alokasi biaya'
+  }
+
+  const harvestBatchLabel =
+    batches.find((b) => b.batch_id === harvestBatch)?.crop_name || 'Pilih komoditas tanaman'
 
   const previewExpenseTotal = (Number(qty) || 0) * (Number(unitPrice) || 0)
   const previewHarvestTotal = (Number(netKg) || 0) * (Number(sellPrice) || 0)
 
   const handleSaveExpense = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedBatch) return
     setLoading(true)
     setErrorMsg('')
 
-    const { error } = await supabase.from('expenses').insert({
-      batch_id: selectedBatch,
-      category,
-      item_name: itemName.trim(),
-      quantity: Number(qty),
-      unit: unit.trim(),
-      unit_price: Number(unitPrice),
-    })
-
-    setLoading(false)
-    if (error) {
-      setErrorMsg(`Gagal menyimpan biaya: ${error.message}`)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      setLoading(false)
       return
+    }
+
+    if (expenseTarget === 'GENERAL') {
+      // Simpan sebagai biaya umum lahan (batch_id = null)
+      const { error } = await supabase.from('expenses').insert({
+        user_id: user.id,
+        batch_id: null,
+        category,
+        item_name: itemName.trim(),
+        quantity: Number(qty),
+        unit: unit.trim(),
+        unit_price: Number(unitPrice),
+      })
+
+      setLoading(false)
+      if (error) {
+        setErrorMsg(`Gagal menyimpan biaya umum: ${error.message}`)
+        return
+      }
+    } else if (expenseTarget === 'SPLIT_EQUAL' && batches.length > 0) {
+      // Pecah biaya secara merata ke seluruh batch aktif agar masuk ke HPP masing-masing tanaman
+      const splitUnitPrice = Math.round(Number(unitPrice) / batches.length)
+      const rows = batches.map((b) => ({
+        user_id: user.id,
+        batch_id: b.batch_id,
+        category,
+        item_name: `${itemName.trim()} (Alokasi ${batches.length} tanaman)`,
+        quantity: Number(qty),
+        unit: unit.trim(),
+        unit_price: splitUnitPrice,
+      }))
+
+      const { error } = await supabase.from('expenses').insert(rows)
+      setLoading(false)
+      if (error) {
+        setErrorMsg(`Gagal mengalokasikan biaya: ${error.message}`)
+        return
+      }
+    } else {
+      // Simpan untuk satu komoditas spesifik
+      const { error } = await supabase.from('expenses').insert({
+        user_id: user.id,
+        batch_id: expenseTarget,
+        category,
+        item_name: itemName.trim(),
+        quantity: Number(qty),
+        unit: unit.trim(),
+        unit_price: Number(unitPrice),
+      })
+
+      setLoading(false)
+      if (error) {
+        setErrorMsg(`Gagal menyimpan biaya: ${error.message}`)
+        return
+      }
     }
 
     setOpenExpense(false)
@@ -93,7 +150,7 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
 
   const handleSaveHarvest = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedBatch) return
+    if (!harvestBatch) return
     if (Number(netKg) > Number(grossKg) && Number(grossKg) > 0) {
       setErrorMsg('Berat bersih jual tidak boleh melebihi berat kotor panen.')
       return
@@ -103,7 +160,7 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
     setErrorMsg('')
 
     const { error } = await supabase.from('harvest_logs').insert({
-      batch_id: selectedBatch,
+      batch_id: harvestBatch,
       gross_weight_kg: Number(grossKg),
       net_weight_kg: Number(netKg),
       selling_price_per_kg: Number(sellPrice),
@@ -152,7 +209,7 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
               Input Pengeluaran / Modal Tanam
             </DialogTitle>
             <DialogDescription className="text-xs text-stone-500">
-              Catat pembelian sarana produksi untuk menghitung HPP per kilogram secara otomatis.
+              Pilih alokasi per tanaman, biaya umum lahan (sewa/olah lahan), atau bagi rata ke semua komoditas.
             </DialogDescription>
           </DialogHeader>
 
@@ -165,20 +222,41 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
             )}
 
             <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-stone-700">Pilih Batch Tanaman</Label>
-              <Select value={selectedBatch} onValueChange={(val) => val && setSelectedBatch(val)}>
+              <Label className="text-xs font-semibold text-stone-700">Alokasi Biaya</Label>
+              <Select value={expenseTarget} onValueChange={(val) => val && setExpenseTarget(val)}>
                 <SelectTrigger className="w-full h-10 rounded-lg justify-between">
-                  <span className="truncate text-left">{selectedBatchLabel}</span>
+                  <span className="truncate text-left">{getExpenseTargetLabel()}</span>
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="GENERAL">
+                    Umum Lahan (Sewa / Olah Lahan Bersama)
+                  </SelectItem>
+                  {batches.length > 1 && (
+                    <SelectItem value="SPLIT_EQUAL">
+                      Bagi Rata ke Semua Tanaman ({batches.length} Batch)
+                    </SelectItem>
+                  )}
                   {batches.map((b) => (
                     <SelectItem key={b.batch_id} value={b.batch_id}>
-                      {b.crop_name}
+                      Khusus: {b.crop_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
+
+            {expenseTarget === 'SPLIT_EQUAL' && (
+              <div className="flex items-start gap-2 p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/80 text-[11px] text-amber-900">
+                <Layers className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>
+                  Biaya akan otomatis dibagi rata sebesar{' '}
+                  <strong className="tabular-nums">
+                    {formatRp(Math.round(previewExpenseTotal / Math.max(1, batches.length)))}
+                  </strong>{' '}
+                  per komoditas agar masuk ke hitungan HPP masing-masing tanaman.
+                </span>
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-stone-700">Kategori Biaya</Label>
@@ -199,7 +277,7 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-stone-700">Nama Item / Keperluan</Label>
               <Input
-                placeholder="Misal: Pupuk Kandang Kohe Kambing"
+                placeholder="Misal: Sewa Traktor Olah Lahan / Sewa Lahan 1 Musim"
                 value={itemName}
                 onChange={(e) => setItemName(e.target.value)}
                 className="rounded-lg h-10"
@@ -223,7 +301,7 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-stone-700">Satuan</Label>
                 <Input
-                  placeholder="karung/liter"
+                  placeholder="paket/hari"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value)}
                   className="rounded-lg h-10"
@@ -235,7 +313,7 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
                 <Input
                   type="number"
                   min="0"
-                  placeholder="15000"
+                  placeholder="250000"
                   value={unitPrice}
                   onChange={(e) => setUnitPrice(e.target.value)}
                   className="rounded-lg h-10 tabular-nums"
@@ -302,9 +380,9 @@ export function BusinessActionModals({ batches }: { batches: BatchOption[] }) {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-stone-700">Pilih Batch Tanaman</Label>
-              <Select value={selectedBatch} onValueChange={(val) => val && setSelectedBatch(val)}>
+              <Select value={harvestBatch} onValueChange={(val) => val && setHarvestBatch(val)}>
                 <SelectTrigger className="w-full h-10 rounded-lg justify-between">
-                  <span className="truncate text-left">{selectedBatchLabel}</span>
+                  <span className="truncate text-left">{harvestBatchLabel}</span>
                 </SelectTrigger>
                 <SelectContent>
                   {batches.map((b) => (
