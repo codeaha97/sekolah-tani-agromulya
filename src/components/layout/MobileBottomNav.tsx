@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Home, BookOpen, Sprout, Calculator, UserCog } from 'lucide-react'
 
 const leftNavItems = [
-  { href: '/', label: 'Beranda', icon: Home },
+  { href: '/dashboard', label: 'Beranda', icon: Home },
   { href: '/akademi', label: 'Akademi', icon: BookOpen },
 ]
 

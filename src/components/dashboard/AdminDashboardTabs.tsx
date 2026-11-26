@@ -21,14 +21,33 @@ import {
   ChevronRight,
   Search,
   Layers,
+  ShieldCheck,
 } from 'lucide-react'
 
 const formatRp = (val: number) =>
   new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val)
 
+const getTodayWIB = () =>
+  new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+
+const diffDaysBetween = (startDateStr: string, endDateStr: string) => {
+  const [sy, sm, sd] = startDateStr.slice(0, 10).split('-').map(Number)
+  const [ey, em, ed] = endDateStr.slice(0, 10).split('-').map(Number)
+  if (!sy || !sm || !sd || !ey || !em || !ed) return 0
+  const startUtc = Date.UTC(sy, sm - 1, sd)
+  const endUtc = Date.UTC(ey, em - 1, ed)
+  return Math.floor((endUtc - startUtc) / (1000 * 60 * 60 * 24))
+}
+
 interface AdminDashboardProps {
   batches: any[]
   participants: any[]
+  mentors?: any[]
   generalExpenses: any[]
   agendaItems: any[]
   latestLogByBatch: Record<string, string>
@@ -38,12 +57,12 @@ interface AdminDashboardProps {
 export function AdminDashboardTabs({
   batches,
   participants,
+  mentors = [],
   generalExpenses,
   agendaItems,
   latestLogByBatch,
   unansweredDiscussions,
 }: AdminDashboardProps) {
-  // Kumpulkan semua nama angkatan unik dari peserta & batch, urutkan terbaru di depan
   const cohorts = useMemo(() => {
     const set = new Set<string>()
     participants.forEach((p) => p.cohort_name && set.add(p.cohort_name.trim()))
@@ -52,9 +71,10 @@ export function AdminDashboardTabs({
   }, [participants, batches])
 
   const [selectedCohort, setSelectedCohort] = useState<string>('ALL')
-  const [searchParticipant, setSearchParticipant] = useState('')
+  const [userRoleFilter, setUserRoleFilter] = useState<'peserta' | 'admin'>('peserta')
+  const [searchUser, setSearchUser] = useState('')
+  const [showAllAlerts, setShowAllAlerts] = useState(false)
 
-  // Filter data sesuai angkatan yang dipilih
   const filteredBatches = useMemo(() => {
     if (selectedCohort === 'ALL') return batches
     return batches.filter((b) => b.cohort_name === selectedCohort)
@@ -155,8 +175,8 @@ export function AdminDashboardTabs({
     })
   }, [filteredParticipants, filteredBatches, filteredGeneralExpenses])
 
-  // Radar Peringatan Mentor (Survival < 80%, Jarang Monitoring > 5 hari, atau SOP Terlewat)
-  const todayStr = new Date().toISOString().split('T')[0]
+  // Radar Peringatan Mentor
+  const todayStr = getTodayWIB()
   const alerts = useMemo(() => {
     const list: { id: string; title: string; subtitle: string; href: string; severity: 'high' | 'warn' }[] = []
 
@@ -176,9 +196,7 @@ export function AdminDashboardTabs({
 
       const lastLogDate = latestLogByBatch[b.batch_id] || b.planting_date
       if (lastLogDate) {
-        const diffDays = Math.floor(
-          (new Date(todayStr).getTime() - new Date(lastLogDate).getTime()) / (1000 * 60 * 60 * 24)
-        )
+        const diffDays = diffDaysBetween(lastLogDate, todayStr)
         if (diffDays >= 5) {
           list.push({
             id: `stale-${b.batch_id}`,
@@ -196,7 +214,7 @@ export function AdminDashboardTabs({
       list.push({
         id: 'overdue-sop',
         title: `${overdueCount} Agenda SOP Melewati Jadwal`,
-        subtitle: 'Cek tab Agenda Mentor untuk menindaklanjuti kelompok terkait',
+        subtitle: 'Cek tab Agenda untuk menindaklanjuti kelompok terkait',
         href: '/kebun',
         severity: 'warn',
       })
@@ -205,20 +223,23 @@ export function AdminDashboardTabs({
     return list
   }, [filteredBatches, filteredAgenda, latestLogByBatch, todayStr])
 
-  const searchedParticipants = useMemo(() => {
-    const q = searchParticipant.trim().toLowerCase()
-    if (!q) return filteredParticipants
-    return filteredParticipants.filter(
-      (p) =>
-        p.full_name?.toLowerCase().includes(q) ||
-        p.farm_group?.toLowerCase().includes(q) ||
-        p.cohort_name?.toLowerCase().includes(q)
+  const visibleAlerts = showAllAlerts ? alerts : alerts.slice(0, 4)
+
+  const searchedUsers = useMemo(() => {
+    const sourceList = userRoleFilter === 'peserta' ? filteredParticipants : mentors
+    const q = searchUser.trim().toLowerCase()
+    if (!q) return sourceList
+    return sourceList.filter(
+      (u) =>
+        u.full_name?.toLowerCase().includes(q) ||
+        u.farm_group?.toLowerCase().includes(q) ||
+        u.cohort_name?.toLowerCase().includes(q)
     )
-  }, [filteredParticipants, searchParticipant])
+  }, [userRoleFilter, filteredParticipants, mentors, searchUser])
 
   return (
     <div className="space-y-5">
-      {/* Filter Angkatan (Siap Multi-Angkatan) */}
+      {/* Filter Angkatan */}
       {cohorts.length > 0 && (
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
           <span className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 mr-1 shrink-0">
@@ -252,7 +273,7 @@ export function AdminDashboardTabs({
         </div>
       )}
 
-      {/* 6 Kartu KPI Ringkas & Simetris (Budidaya + Finansial Kelas) */}
+      {/* 6 Kartu KPI Ringkas & Simetris */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
         <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
           <CardContent className="p-3.5 sm:p-4 flex items-center gap-3 h-full">
@@ -347,17 +368,26 @@ export function AdminDashboardTabs({
         </Card>
       </div>
 
-      {/* Radar Perhatian Mentor (Muncul otomatis jika ada anomali) */}
+      {/* Radar Perhatian Mentor */}
       {alerts.length > 0 && (
         <Card className="rounded-xl border-amber-200/90 bg-amber-50/60 shadow-2xs">
-          <CardHeader className="pb-2">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-amber-600" />
               Perlu Perhatian Mentor ({alerts.length})
             </CardTitle>
+            {alerts.length > 4 && (
+              <button
+                type="button"
+                onClick={() => setShowAllAlerts((prev) => !prev)}
+                className="text-[11px] font-semibold text-amber-800 hover:underline"
+              >
+                {showAllAlerts ? 'Tampilkan Ringkas' : `Lihat Semua (${alerts.length})`}
+              </button>
+            )}
           </CardHeader>
           <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {alerts.slice(0, 4).map((item) => (
+            {visibleAlerts.map((item) => (
               <Link
                 key={item.id}
                 href={item.href}
@@ -380,35 +410,64 @@ export function AdminDashboardTabs({
         </Card>
       )}
 
-      {/* Tabs Utama Dashboard Admin */}
+      {/* Bagian Terpisah: Tanya Materi Menunggu Jawaban Mentor (Agar Tab Utama Mobile Tidak Terpotong) */}
+      {unansweredDiscussions.length > 0 && (
+        <Card className="rounded-xl border-emerald-200/90 bg-emerald-50/40 shadow-2xs">
+          <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider text-emerald-900 flex items-center gap-2">
+              <MessageSquare className="w-4 h-4 text-emerald-700" />
+              Tanya Materi Belum Dijawab ({unansweredDiscussions.length})
+            </CardTitle>
+            <Link href="/akademi" className="text-[11px] font-semibold text-emerald-700 hover:underline">
+              Ke Akademi →
+            </Link>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {unansweredDiscussions.slice(0, 4).map((disc: any) => (
+              <Link
+                key={disc.id}
+                href={`/akademi/${disc.module_id}`}
+                className="flex items-start justify-between gap-2.5 p-2.5 rounded-lg bg-white border border-emerald-200/80 hover:border-emerald-400 transition-colors"
+              >
+                <div className="min-w-0 space-y-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs font-bold text-stone-900 truncate">
+                      {disc.author_name}
+                    </span>
+                    <Badge variant="outline" className="text-[10px] py-0 px-1.5 rounded-md bg-stone-50">
+                      {disc.module_title}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-stone-600 line-clamp-2">{disc.content}</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Tabs Utama Dashboard Admin (3 Tab Pas di Layar Mobile Tanpa Horizontal Scroll) */}
       <Tabs defaultValue="kelompok" className="w-full">
-        <TabsList className="flex w-full sm:w-fit h-auto p-1 bg-stone-200/80 rounded-lg gap-1 overflow-x-auto">
+        <TabsList className="grid grid-cols-3 w-full sm:w-fit h-auto p-1 bg-stone-200/80 rounded-lg gap-1">
           <TabsTrigger
             value="kelompok"
-            className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
+            className="rounded-md px-3 py-2 text-xs font-semibold truncate"
           >
             Kelompok ({groupedFarms.length})
           </TabsTrigger>
           <TabsTrigger
-            value="peserta"
-            className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
+            value="pengguna"
+            className="rounded-md px-3 py-2 text-xs font-semibold truncate"
           >
-            Peserta ({filteredParticipants.length})
+            Pengguna ({filteredParticipants.length + mentors.length})
           </TabsTrigger>
           <TabsTrigger
             value="agenda"
-            className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
+            className="rounded-md px-3 py-2 text-xs font-semibold truncate"
           >
             Agenda ({filteredAgenda.length})
           </TabsTrigger>
-          {unansweredDiscussions.length > 0 && (
-            <TabsTrigger
-              value="diskusi"
-              className="flex-1 sm:flex-initial rounded-md px-3.5 py-2 text-xs font-semibold whitespace-nowrap"
-            >
-              Tanya Materi ({unansweredDiscussions.length})
-            </TabsTrigger>
-          )}
         </TabsList>
 
         {/* TAB 1: REKAP PER KELOMPOK & DAFTAR KOMODITAS DI DALAMNYA */}
@@ -454,6 +513,7 @@ export function AdminDashboardTabs({
                         const init = Number(crop.initial_plant_count || 0)
                         const alive = Number(crop.current_alive_count || 0)
                         const rate = init > 0 ? Math.round((alive / init) * 100) : 100
+                        const lastUpdate = latestLogByBatch[crop.batch_id] || crop.planting_date
 
                         return (
                           <Link
@@ -479,6 +539,7 @@ export function AdminDashboardTabs({
                               <p className="text-[11px] text-stone-500 mt-0.5 tabular-nums">
                                 Blok {crop.plot_name || 'Utama'} • Hidup {alive}/{init} btg • Panen{' '}
                                 <strong className="text-emerald-700">{crop.total_harvest_kg} kg</strong>
+                                {lastUpdate ? ` • Update ${lastUpdate}` : ''}
                               </p>
                             </div>
 
@@ -502,37 +563,90 @@ export function AdminDashboardTabs({
           )}
         </TabsContent>
 
-        {/* TAB 2: DIREKTORI PESERTA + PENCARIAN */}
-        <TabsContent value="peserta" className="mt-4 space-y-3">
-          <div className="relative max-w-sm">
-            <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
-            <Input
-              placeholder="Cari nama peserta atau kelompok..."
-              value={searchParticipant}
-              onChange={(e) => setSearchParticipant(e.target.value)}
-              className="pl-9 h-9 rounded-lg bg-white text-xs sm:text-sm"
-            />
+        {/* TAB 2: DIREKTORI PENGGUNA (PESERTA & ADMIN/MENTOR) */}
+        <TabsContent value="pengguna" className="mt-4 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <div className="inline-flex p-1 rounded-lg bg-stone-200/70 w-fit">
+              <button
+                type="button"
+                onClick={() => setUserRoleFilter('peserta')}
+                className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  userRoleFilter === 'peserta'
+                    ? 'bg-white text-stone-900 shadow-2xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                Peserta Kelas ({filteredParticipants.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setUserRoleFilter('admin')}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                  userRoleFilter === 'admin'
+                    ? 'bg-white text-amber-900 shadow-2xs'
+                    : 'text-stone-600 hover:text-stone-900'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
+                Admin &amp; Mentor ({mentors.length})
+              </button>
+            </div>
+
+            <div className="relative w-full sm:max-w-xs">
+              <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <Input
+                placeholder={
+                  userRoleFilter === 'peserta'
+                    ? 'Cari nama peserta atau kelompok...'
+                    : 'Cari nama admin / mentor...'
+                }
+                value={searchUser}
+                onChange={(e) => setSearchUser(e.target.value)}
+                className="pl-9 h-9 rounded-lg bg-white text-xs sm:text-sm"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2.5">
-            {searchedParticipants.length > 0 ? (
-              searchedParticipants.map((p: any) => {
-                const cleanPhone = p.phone_number?.replace(/[^0-9]/g, '').replace(/^0/, '62')
+            {searchedUsers.length > 0 ? (
+              searchedUsers.map((u: any) => {
+                const cleanPhone = u.phone_number?.replace(/[^0-9]/g, '').replace(/^0/, '62')
+                const isMentorRole = ['admin', 'mentor'].includes(u.role || '')
+
                 return (
-                  <Card key={p.id} className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
+                  <Card
+                    key={u.id}
+                    className={`rounded-xl shadow-2xs bg-white ${
+                      isMentorRole ? 'border-amber-200/90' : 'border-stone-200/90'
+                    }`}
+                  >
                     <CardContent className="p-3.5 flex items-center justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-bold text-sm text-stone-900 truncate">{p.full_name}</p>
+                      <div className="min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-bold text-sm text-stone-900 truncate">{u.full_name}</p>
+                          {isMentorRole && (
+                            <Badge className="rounded bg-amber-100 text-amber-900 hover:bg-amber-100 border border-amber-200 text-[10px] py-0 px-1.5">
+                              {u.role === 'admin' ? 'Admin' : 'Mentor'}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-stone-500 truncate">
-                          {p.cohort_name || '-'} • {p.farm_group || '-'}
+                          {isMentorRole
+                            ? u.phone_number || 'Koordinator Agro Mulya'
+                            : `${u.cohort_name || '-'} • ${u.farm_group || '-'}`}
                         </p>
                       </div>
+
                       {cleanPhone && (
                         <a
                           href={`https://wa.me/${cleanPhone}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 text-xs font-semibold hover:bg-emerald-100 shrink-0"
+                          className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold shrink-0 transition-colors ${
+                            isMentorRole
+                              ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
+                              : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                          }`}
                         >
                           <MessageCircle className="w-3.5 h-3.5" /> WA
                         </a>
@@ -543,7 +657,7 @@ export function AdminDashboardTabs({
               })
             ) : (
               <p className="col-span-full text-center text-stone-400 text-xs py-6 bg-white rounded-xl border border-stone-200">
-                Tidak ada peserta yang cocok dengan pencarian.
+                Tidak ada pengguna yang cocok dengan pencarian.
               </p>
             )}
           </div>
@@ -608,39 +722,6 @@ export function AdminDashboardTabs({
             </CardContent>
           </Card>
         </TabsContent>
-
-        {/* TAB 4: PERTANYAAN MATERI BELUM DIBALAS MENTOR */}
-        {unansweredDiscussions.length > 0 && (
-          <TabsContent value="diskusi" className="mt-4">
-            <Card className="rounded-xl border-stone-200/90 shadow-2xs bg-white">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-emerald-700" />
-                  Pertanyaan Peserta di Akademi yang Menunggu Jawaban
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2.5">
-                {unansweredDiscussions.map((disc: any) => (
-                  <Link
-                    key={disc.id}
-                    href={`/akademi/${disc.module_id}`}
-                    className="block p-3 rounded-lg bg-stone-50 hover:bg-emerald-50/60 border border-stone-200/70 transition-colors space-y-1"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-xs">
-                      <span className="font-bold text-stone-900">
-                        {disc.author_name} ({disc.farm_group || 'Peserta'})
-                      </span>
-                      <Badge variant="outline" className="text-[10px] rounded-md">
-                        {disc.module_title}
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-stone-600 line-clamp-2">{disc.content}</p>
-                  </Link>
-                ))}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   )

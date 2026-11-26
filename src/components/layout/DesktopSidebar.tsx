@@ -16,7 +16,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { UserNavProfile } from '@/app/(dashboard)/layout'
 
 const navItems = [
-  { href: '/', label: 'Beranda', icon: Home },
+  { href: '/dashboard', label: 'Beranda', icon: Home },
   { href: '/akademi', label: 'Akademi & Mind Map', icon: BookOpen },
   { href: '/kebun', label: 'Kebun & Monitoring', icon: Sprout },
   { href: '/bisnis', label: 'Panen & Bisnis', icon: Calculator },

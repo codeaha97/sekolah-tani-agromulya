@@ -27,20 +27,26 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isAuthPage =
-  request.nextUrl.pathname.startsWith('/login') ||
-  request.nextUrl.pathname.startsWith('/register') ||
-  request.nextUrl.pathname.startsWith('/reset-password')
+  const pathname = request.nextUrl.pathname
 
-  if (!user && !isAuthPage) {
+  const isLandingPage = pathname === '/'
+  const isAuthPage =
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/auth')
+
+  // Jika belum login dan mengakses halaman terproteksi (selain landing page & halaman auth)
+  if (!user && !isLandingPage && !isAuthPage) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
   }
 
-  if (user && isAuthPage) {
+  // Jika sudah login dan membuka landing page (/) atau halaman auth, langsung arahkan ke /dashboard
+  if (user && (isLandingPage || isAuthPage)) {
     const url = request.nextUrl.clone()
-    url.pathname = '/'
+    url.pathname = '/dashboard'
     return NextResponse.redirect(url)
   }
 

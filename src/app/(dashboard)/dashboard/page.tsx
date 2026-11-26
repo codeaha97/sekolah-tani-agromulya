@@ -57,9 +57,12 @@ export default async function DashboardHomePage() {
 
   const [
     { data: teammates },
-    { data: allParticipants },
+    { data: allProfiles },
     { data: rawGeneralExpenses },
-    { data: recentLogs },
+    { data: recentGrowthLogs },
+    { data: recentHarvestLogs },
+    { data: recentExpenseLogs },
+    { data: recentSopLogs },
     { data: rawDiscussions },
     { data: modules },
   ] = await Promise.all([
@@ -74,7 +77,6 @@ export default async function DashboardHomePage() {
       ? supabase
           .from('profiles')
           .select('*')
-          .eq('role', 'peserta')
           .order('cohort_name', { ascending: false })
           .order('farm_group', { ascending: true })
       : Promise.resolve({ data: [] }),
@@ -86,6 +88,28 @@ export default async function DashboardHomePage() {
           .from('growth_logs')
           .select('batch_id, log_date')
           .order('log_date', { ascending: false })
+          .limit(300)
+      : Promise.resolve({ data: [] }),
+    isAdmin
+      ? supabase
+          .from('harvest_logs')
+          .select('batch_id, harvest_date')
+          .order('harvest_date', { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] }),
+    isAdmin
+      ? supabase
+          .from('expenses')
+          .select('batch_id, expense_date')
+          .not('batch_id', 'is', null)
+          .order('expense_date', { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: [] }),
+    isAdmin
+      ? supabase
+          .from('batch_sop_progress')
+          .select('batch_id, completed_at, target_date')
+          .eq('is_completed', true)
           .limit(200)
       : Promise.resolve({ data: [] }),
     isAdmin
@@ -161,12 +185,34 @@ export default async function DashboardHomePage() {
     }
   }
 
-  // Persiapan data tambahan khusus Admin
-  const participantMap = new Map((allParticipants || []).map((p: any) => [p.id, p]))
+  // Pisahkan seluruh profil vs daftar peserta murni & daftar admin/mentor
+  const allProfilesMap = new Map((allProfiles || []).map((p: any) => [p.id, p]))
+  const allParticipants = (allProfiles || []).filter((p: any) => p.role === 'peserta')
+  const allMentors = (allProfiles || []).filter((p: any) =>
+    ['admin', 'mentor'].includes(p.role || '')
+  )
   const moduleMap = new Map((modules || []).map((m: any) => [m.id, m.title]))
 
+  // Gabungkan tanggal aktivitas paling baru per batch dari log pertumbuhan, panen, biaya, dan SOP
+  const latestLogByBatch: Record<string, string> = {}
+  const recordLatestDate = (batchId?: string | null, rawDate?: string | null) => {
+    if (!batchId || !rawDate) return
+    const dateOnly = String(rawDate).slice(0, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateOnly)) return
+    if (!latestLogByBatch[batchId] || dateOnly > latestLogByBatch[batchId]) {
+      latestLogByBatch[batchId] = dateOnly
+    }
+  }
+
+  ;(recentGrowthLogs || []).forEach((log: any) => recordLatestDate(log.batch_id, log.log_date))
+  ;(recentHarvestLogs || []).forEach((log: any) => recordLatestDate(log.batch_id, log.harvest_date))
+  ;(recentExpenseLogs || []).forEach((log: any) => recordLatestDate(log.batch_id, log.expense_date))
+  ;(recentSopLogs || []).forEach((log: any) =>
+    recordLatestDate(log.batch_id, log.completed_at || log.target_date)
+  )
+
   const enrichedGeneralExpenses = (rawGeneralExpenses || []).map((exp: any) => {
-    const owner = exp.user_id ? participantMap.get(exp.user_id) : null
+    const owner = exp.user_id ? allProfilesMap.get(exp.user_id) : null
     return {
       ...exp,
       cohort_name: owner?.cohort_name || null,
@@ -174,20 +220,26 @@ export default async function DashboardHomePage() {
     }
   })
 
-  const latestLogByBatch: Record<string, string> = {}
-  ;(recentLogs || []).forEach((log: any) => {
-    if (!latestLogByBatch[log.batch_id]) {
-      latestLogByBatch[log.batch_id] = log.log_date
-    }
-  })
-
-  const repliedParentIds = new Set(
-    (rawDiscussions || []).filter((d: any) => d.parent_id).map((d: any) => d.parent_id)
+  // Tandai utas diskusi yang sudah dijawab oleh mentor/admin
+  const mentorRepliedParentIds = new Set(
+    (rawDiscussions || [])
+      .filter((d: any) => {
+        if (!d.parent_id) return false
+        const replier = allProfilesMap.get(d.user_id)
+        return ['admin', 'mentor'].includes(replier?.role || '')
+      })
+      .map((d: any) => d.parent_id)
   )
+
   const unansweredDiscussions = (rawDiscussions || [])
-    .filter((d: any) => !d.parent_id && !repliedParentIds.has(d.id))
+    .filter((d: any) => {
+      if (d.parent_id || mentorRepliedParentIds.has(d.id)) return false
+      const author = allProfilesMap.get(d.user_id)
+      // Abaikan jika utas dibuat oleh mentor/admin sendiri
+      return !['admin', 'mentor'].includes(author?.role || '')
+    })
     .map((d: any) => {
-      const author = participantMap.get(d.user_id)
+      const author = allProfilesMap.get(d.user_id)
       return {
         ...d,
         author_name: author?.full_name || 'Peserta',
@@ -238,7 +290,8 @@ export default async function DashboardHomePage() {
       {isAdmin ? (
         <AdminDashboardTabs
           batches={batches || []}
-          participants={allParticipants || []}
+          participants={allParticipants}
+          mentors={allMentors}
           generalExpenses={enrichedGeneralExpenses}
           agendaItems={upcomingAgenda}
           latestLogByBatch={latestLogByBatch}

@@ -21,6 +21,7 @@ import {
   KeyRound,
   AlertCircle,
   CheckCircle2,
+  ArrowLeft,
 } from 'lucide-react'
 
 const COHORT_OPTIONS = ['Angkatan 1', 'Angkatan 2', 'Angkatan 3', 'Angkatan 4', 'Angkatan 5']
@@ -32,7 +33,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [cohortName, setCohortName] = useState('Angkatan 1')
+  const [cohortName, setCohortName] = useState('Angkatan 4')
   const [farmGroup, setFarmGroup] = useState('Kelompok 1')
   const [role, setRole] = useState<'peserta' | 'admin'>('peserta')
   const [adminCode, setAdminCode] = useState('')
@@ -61,7 +62,7 @@ export default function RegisterPage() {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/dashboard`,
         data: {
           full_name: fullName.trim(),
           phone_number: phoneNumber.trim(),
@@ -89,13 +90,22 @@ export default function RegisterPage() {
       return
     }
 
-    router.push('/')
+    router.push('/dashboard')
     router.refresh()
   }
 
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col justify-center items-center px-4 py-8">
       <div className="w-full max-w-md space-y-5">
+        <div>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-stone-500 hover:text-emerald-700 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Kembali ke Beranda
+          </Link>
+        </div>
+
         {/* Header Brand */}
         <div className="text-center space-y-1.5">
           <div className="w-12 h-12 rounded-2xl bg-emerald-900 text-emerald-300 flex items-center justify-center mx-auto shadow-sm">
